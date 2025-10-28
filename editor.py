@@ -9,6 +9,104 @@ from textual.containers import Container, Vertical
 from textual.binding import Binding
 from pathlib import Path
 import os
+import subprocess
+
+
+class ClickablePath(Static):
+    """A clickable path that opens the folder."""
+    
+    def __init__(self, path: Path, **kwargs):
+        super().__init__(**kwargs)
+        self.path = path
+        self.can_focus = True
+    
+    def render(self) -> str:
+        """Render the path."""
+        if self.has_focus:
+            return f"Location: [bold cyan][link]{self.path}[/link][/] [dim](click to open)[/]"
+        return f"Location: [link]{self.path}[/link] [dim](click to open)[/]"
+    
+    def on_click(self) -> None:
+        """Open the folder when clicked."""
+        try:
+            # Use xdg-open on Linux to open the folder in file manager
+            subprocess.Popen(['xdg-open', str(self.path)])
+        except Exception:
+            pass
+    
+    def on_focus(self) -> None:
+        """Refresh when focused."""
+        self.refresh()
+    
+    def on_blur(self) -> None:
+        """Refresh when focus lost."""
+        self.refresh()
+
+
+class FilenamePrompt(ModalScreen):
+    """Modal screen for entering a filename."""
+    
+    def compose(self) -> ComposeResult:
+        """Create the filename prompt interface."""
+        from textual.widgets import Input, Label
+        from textual.containers import Vertical
+        
+        with Container(id="prompt-container"):
+            yield Static("SAVE FILE", id="prompt-title")
+            yield Label("Enter filename (without .md):", id="prompt-label")
+            yield Input(placeholder="my-note", id="filename-input")
+            yield Static("Press Enter to save, Escape to cancel", id="prompt-hint")
+    
+    def on_mount(self) -> None:
+        """Focus the input when mounted."""
+        self.query_one("#filename-input").focus()
+    
+    def on_input_submitted(self, event) -> None:
+        """Handle Enter key in input."""
+        filename = event.value.strip()
+        self.dismiss(filename if filename else None)
+    
+    def on_key(self, event) -> None:
+        """Handle escape key."""
+        if event.key == "escape":
+            self.dismiss(None)
+
+
+FilenamePrompt.CSS = """
+FilenamePrompt {
+    align: center middle;
+}
+
+#prompt-container {
+    border: double $primary;
+    width: 60;
+    height: auto;
+    background: $surface;
+    padding: 2;
+}
+
+#prompt-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+#prompt-label {
+    color: $text;
+    margin-bottom: 1;
+}
+
+#filename-input {
+    margin-bottom: 1;
+}
+
+#prompt-hint {
+    text-align: center;
+    color: $text-muted;
+    margin-top: 1;
+}
+"""
 
 
 class FileItem(Static):
@@ -23,8 +121,8 @@ class FileItem(Static):
     def render(self) -> str:
         """Render the file item."""
         if self.has_focus:
-            return f"[bold cyan]▸ 📄[/] [bold]{self.filename}[/]"
-        return f"  📄  {self.filename}"
+            return f"[bold cyan]▸[/] {self.filename}"
+        return f"  {self.filename}"
     
     def on_focus(self) -> None:
         """Refresh when focused."""
@@ -50,24 +148,29 @@ class FileBrowser(ModalScreen):
     
     def compose(self) -> ComposeResult:
         """Create the file browser interface."""
+        from textual.widgets import Footer
         files = sorted(self.documents_dir.glob("*.md"), key=os.path.getmtime, reverse=True)
         
-        with Container(id="browser-container"):
-            yield Static("OPEN FILE", id="browser-title")
-            yield Static(f"📁 {self.documents_dir}", id="browser-path")
-            
-            if not files:
-                yield Static("No files found. Create your first note!", id="no-files")
-            else:
-                with Vertical(id="file-list"):
-                    for file in files:
-                        # Show relative time
-                        mtime = os.path.getmtime(file)
-                        from datetime import datetime
-                        mod_time = datetime.fromtimestamp(mtime)
-                        time_str = mod_time.strftime("%Y-%m-%d %H:%M")
-                        filename = f"{file.name}  [dim]{time_str}[/]"
-                        yield FileItem(filename, file)
+        yield Container(
+            Static("OPEN FILE", id="browser-title"),
+            ClickablePath(self.documents_dir, id="browser-path"),
+            Static("", id="browser-spacer"),
+            Vertical(
+                *(FileItem(
+                    f"{file.stem}  [dim]{self._format_time(os.path.getmtime(file))}[/]",
+                    file
+                ) for file in files) if files else [Static("No files found. Save a file first!", id="no-files")],
+                id="file-list"
+            ),
+            id="browser-container"
+        )
+        yield Footer()
+    
+    def _format_time(self, timestamp: float) -> str:
+        """Format timestamp for display."""
+        from datetime import datetime
+        mod_time = datetime.fromtimestamp(timestamp)
+        return mod_time.strftime("%Y-%m-%d %H:%M")
     
     def on_mount(self) -> None:
         """Focus first file when mounted."""
@@ -97,49 +200,55 @@ class FileBrowser(ModalScreen):
 
 FileBrowser.CSS = """
 FileBrowser {
-    align: center middle;
+    border: double $primary;
 }
 
 #browser-container {
-    border: double $primary;
-    width: 70%;
-    max-width: 80;
-    height: auto;
-    max-height: 70%;
+    width: 100%;
+    height: 100%;
     background: $surface;
-    padding: 2;
+    padding: 2 4;
 }
 
 #browser-title {
-    text-align: center;
+    text-align: left;
     text-style: bold;
     color: $accent;
     margin-bottom: 1;
 }
 
 #browser-path {
-    text-align: center;
+    text-align: left;
     color: $text-muted;
-    margin-bottom: 2;
+    margin-bottom: 1;
+}
+
+ClickablePath {
+    height: auto;
+    padding: 0;
+}
+
+ClickablePath:focus {
+    background: $boost;
+}
+
+#browser-spacer {
+    height: 1;
 }
 
 #file-list {
     height: auto;
-    max-height: 25;
     overflow-y: auto;
-    border: solid $primary-darken-2;
-    padding: 1;
 }
 
 #no-files {
-    text-align: center;
     color: $text-muted;
-    padding: 2;
+    padding: 2 0;
 }
 
 FileItem {
     height: auto;
-    padding: 1 2;
+    padding: 0 2;
     margin: 0;
 }
 
@@ -157,6 +266,7 @@ class EditorScreen(Screen):
         Binding("ctrl+o", "open", "Open", priority=True),
         Binding("ctrl+n", "new", "New", priority=True),
         Binding("escape", "back", "Back", priority=True),
+        Binding("tab", "insert_tab", "Tab", show=False, priority=True),
     ]
     
     def __init__(self):
@@ -182,23 +292,42 @@ class EditorScreen(Screen):
         text_area.focus()
         self._update_status("Ready")
     
+    def action_insert_tab(self) -> None:
+        """Insert a tab character."""
+        text_area = self.query_one("#text-area", TextArea)
+        text_area.insert("    ")  # Insert 4 spaces as tab
+    
     def action_save(self) -> None:
         """Save the current document."""
-        text_area = self.query_one("#text-area", TextArea)
-        content = text_area.text
+        def handle_filename(filename):
+            if filename:
+                text_area = self.query_one("#text-area", TextArea)
+                content = text_area.text
+                
+                # Ensure .md extension
+                if not filename.endswith('.md'):
+                    filename = f"{filename}.md"
+                
+                self.current_file = self.documents_dir / filename
+                
+                try:
+                    self.current_file.write_text(content)
+                    self._update_status(f"Saved: {self.current_file.name}")
+                except Exception as e:
+                    self._update_status(f"Error: {str(e)}")
         
-        if self.current_file is None:
-            # Generate a filename based on timestamp
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"note_{timestamp}.md"
-            self.current_file = self.documents_dir / filename
-        
-        try:
-            self.current_file.write_text(content)
-            self._update_status(f"Saved: {self.current_file.name}")
-        except Exception as e:
-            self._update_status(f"Error: {str(e)}")
+        # If file already has a name, just save it
+        if self.current_file is not None:
+            text_area = self.query_one("#text-area", TextArea)
+            content = text_area.text
+            try:
+                self.current_file.write_text(content)
+                self._update_status(f"Saved: {self.current_file.name}")
+            except Exception as e:
+                self._update_status(f"Error: {str(e)}")
+        else:
+            # Prompt for filename
+            self.app.push_screen(FilenamePrompt(), handle_filename)
     
     def action_open(self) -> None:
         """Open a file from the documents directory."""
