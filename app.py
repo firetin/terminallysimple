@@ -14,18 +14,33 @@ from editor import EditorScreen
 from config import config
 
 
-class MenuItem(Static):
+class MenuItem(Static, can_focus=True):
     """A clickable menu item."""
+    
+    DEFAULT_CSS = """
+    MenuItem {
+        height: auto;
+        padding: 0 2;
+        margin: 0;
+    }
+    
+    MenuItem:focus {
+        background: $boost;
+    }
+    
+    MenuItem:focus-within {
+        background: $boost;
+    }
+    """
     
     def __init__(self, label: str, key: str, description: str = "", **kwargs):
         super().__init__(**kwargs)
         self.label = label
         self.key = key
         self.description = description
-        self.can_focus = True
     
     def render(self) -> str:
-        """Render the menu item."""
+        """Render the menu item - always show focus state."""
         if self.has_focus:
             return f"[bold cyan]▸ {self.key}[/] [bold]{self.label}[/]  [dim]{self.description}[/]"
         return f"  {self.key}  {self.label}  [dim]{self.description}[/]"
@@ -44,8 +59,10 @@ class MainMenu(Screen):
     
     BINDINGS = [
         Binding("1", "select_editor", "Editor", show=False),
-        Binding("q", "quit", "Quit"),
-        Binding("enter", "activate", "Select", show=False),
+        Binding("q", "app.quit", "Quit"),
+        Binding("enter", "activate", "Select", show=True),
+        Binding("down,j", "focus_next", "Next", show=False),
+        Binding("up,k", "focus_previous", "Previous", show=False),
     ]
 
     def compose(self) -> ComposeResult:
@@ -62,22 +79,15 @@ class MainMenu(Screen):
 
     def on_mount(self) -> None:
         """Focus first item when mounted."""
-        try:
-            self.query_one("#item-editor").focus()
-        except:
-            pass
+        def set_initial_focus():
+            self.set_focus(self.query_one("#item-editor"))
+        # Use set_timer for a slight delay to ensure rendering is complete
+        self.set_timer(0.01, set_initial_focus)
 
     def on_click(self, event) -> None:
         """Handle clicks on menu items."""
         if isinstance(event.widget, MenuItem):
             self._activate_item(event.widget.id)
-
-    def on_key(self, event) -> None:
-        """Handle key presses for menu items."""
-        if event.key == "enter":
-            focused = self.focused
-            if isinstance(focused, MenuItem):
-                self._activate_item(focused.id)
 
     def _activate_item(self, item_id: str) -> None:
         """Activate a menu item."""
@@ -124,16 +134,6 @@ class TerminallySimple(App):
         text-align: left;
         color: $text-muted;
         margin-bottom: 2;
-    }
-    
-    MenuItem {
-        height: auto;
-        padding: 0 2;
-        margin: 0;
-    }
-    
-    MenuItem:focus {
-        background: $boost;
     }
     """
     

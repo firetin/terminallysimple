@@ -12,13 +12,12 @@ import os
 import subprocess
 
 
-class ClickablePath(Static):
+class ClickablePath(Static, can_focus=True):
     """A clickable path that opens the folder."""
     
     def __init__(self, path: Path, **kwargs):
         super().__init__(**kwargs)
         self.path = path
-        self.can_focus = True
     
     def render(self) -> str:
         """Render the path."""
@@ -109,17 +108,16 @@ FilenamePrompt {
 """
 
 
-class FileItem(Static):
+class FileItem(Static, can_focus=True):
     """A clickable file item in the browser."""
     
     def __init__(self, filename: str, filepath: Path, **kwargs):
         super().__init__(**kwargs)
         self.filename = filename
         self.filepath = filepath
-        self.can_focus = True
     
     def render(self) -> str:
-        """Render the file item."""
+        """Render the file item - always show focus state."""
         if self.has_focus:
             return f"[bold cyan]▸[/] {self.filename}"
         return f"  {self.filename}"
@@ -139,6 +137,8 @@ class FileBrowser(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel", priority=True),
         Binding("enter", "select", "Open", show=False),
+        Binding("down,j", "focus_next", "Next", show=False),
+        Binding("up,k", "focus_previous", "Previous", show=False),
     ]
     
     def __init__(self, documents_dir: Path):
@@ -174,11 +174,14 @@ class FileBrowser(ModalScreen):
     
     def on_mount(self) -> None:
         """Focus first file when mounted."""
-        try:
-            first_item = self.query_one(FileItem)
-            first_item.focus()
-        except:
-            pass
+        def set_initial_focus():
+            try:
+                first_item = self.query_one(FileItem)
+                self.set_focus(first_item)
+            except:
+                pass
+        # Use set_timer for a slight delay to ensure rendering is complete
+        self.set_timer(0.01, set_initial_focus)
     
     def on_click(self, event) -> None:
         """Handle clicks on file items."""
@@ -232,6 +235,10 @@ ClickablePath:focus {
     background: $boost;
 }
 
+ClickablePath:focus-within {
+    background: $boost;
+}
+
 #browser-spacer {
     height: 1;
 }
@@ -253,6 +260,10 @@ FileItem {
 }
 
 FileItem:focus {
+    background: $boost;
+}
+
+FileItem:focus-within {
     background: $boost;
 }
 """
