@@ -50,6 +50,12 @@ Launch the app and navigate through available tools using the menu. Each tool ru
 python app.py
 ```
 
+### Text Editor
+- Files are saved in the `notes/` folder within the app directory
+- Press `Ctrl+O` to browse and open saved files
+- Press `Ctrl+S` to save (auto-generates timestamped filename)
+- Press `Ctrl+N` to start a new document
+
 ## Contributing
 
 Contributions are welcome! Please keep the minimalist philosophy in mind:
