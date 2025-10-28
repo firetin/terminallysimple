@@ -11,6 +11,7 @@ from textual.binding import Binding
 from textual.screen import Screen
 
 from editor import EditorScreen
+from settings import SettingsScreen
 from config import config
 
 
@@ -59,6 +60,7 @@ class MainMenu(Screen):
     
     BINDINGS = [
         Binding("1", "select_editor", "Editor", show=False),
+        Binding("2", "select_settings", "Settings", show=False),
         Binding("q", "app.quit", "Quit"),
         Binding("enter", "activate", "Select", show=True),
         Binding("down,j", "cursor_down", "Next", show=False),
@@ -72,6 +74,7 @@ class MainMenu(Screen):
             Static("TERMINALLY SIMPLE", id="title"),
             Static("One app. All your tools. Zero distractions.", id="subtitle"),
             MenuItem("Text Editor", "1", "Distraction-free writing", id="item-editor"),
+            MenuItem("Settings", "2", "Customize theme and appearance", id="item-settings"),
             MenuItem("Exit", "q", "Quit application", id="item-exit"),
             id="menu-container"
         )
@@ -93,12 +96,18 @@ class MainMenu(Screen):
         """Activate a menu item."""
         if item_id == "item-editor":
             self.action_select_editor()
+        elif item_id == "item-settings":
+            self.action_select_settings()
         elif item_id == "item-exit":
             self.app.exit()
 
     def action_select_editor(self) -> None:
         """Open the editor."""
         self.app.push_screen(EditorScreen())
+    
+    def action_select_settings(self) -> None:
+        """Open the settings screen."""
+        self.app.push_screen(SettingsScreen())
     
     def action_activate(self) -> None:
         """Activate focused item."""
@@ -140,6 +149,9 @@ class MainMenu(Screen):
 class TerminallySimple(App):
     """Main application class."""
     
+    # Disable the command palette
+    ENABLE_COMMAND_PALETTE = False
+    
     CSS = """
     Screen {
         border: double $primary;
@@ -169,35 +181,30 @@ class TerminallySimple(App):
     
     TITLE = "Terminally Simple"
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._initializing = True
-    
     def on_mount(self) -> None:
         """Called when app starts."""
-        # Apply theme from config
-        theme = config.get("theme", "dark")
-        if theme == "light":
-            self.theme = "textual-light"
-        else:
-            self.theme = "textual-dark"
-        
-        # Done initializing, now watch for theme changes
-        self._initializing = False
-        
+        # Apply theme from config without triggering watch_theme
+        self.apply_theme_from_config()
         self.push_screen(MainMenu())
     
+    def apply_theme_from_config(self) -> None:
+        """Apply theme from config without triggering auto-save."""
+        theme = config.get("theme", "textual-dark")
+        try:
+            self.theme = theme
+        except Exception:
+            # If theme doesn't exist, fall back to textual-dark
+            self.theme = "textual-dark"
+    
     def watch_theme(self, theme: str) -> None:
-        """Watch for theme changes and save them."""
-        # Don't save during initialization
-        if self._initializing:
-            return
+        """Watch for theme changes and save them to config.
         
+        Note: This is called automatically when self.theme changes.
+        It does NOT get called during initialization because we set
+        the theme in on_mount before any screens are loaded.
+        """
         # Save the theme preference when it changes
-        if theme == "textual-light":
-            config.set("theme", "light")
-        else:
-            config.set("theme", "dark")
+        config.set("theme", theme)
         config.save()
 
 

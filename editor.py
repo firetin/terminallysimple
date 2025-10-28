@@ -10,6 +10,61 @@ from textual.binding import Binding
 from pathlib import Path
 import os
 import subprocess
+import platform
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize and validate a filename to prevent security issues.
+    
+    Args:
+        filename: The filename to sanitize
+        
+    Returns:
+        A safe filename string
+        
+    Raises:
+        ValueError: If the filename is invalid or dangerous
+    """
+    if not filename or not filename.strip():
+        raise ValueError("Filename cannot be empty")
+    
+    filename = filename.strip()
+    
+    # Remove path separators to prevent directory traversal
+    if '/' in filename or '\\' in filename:
+        raise ValueError("Filename cannot contain path separators (/ or \\)")
+    
+    # Check for parent directory references
+    if filename in ('.', '..') or filename.startswith('.'):
+        raise ValueError("Filename cannot start with '.' or be a directory reference")
+    
+    # Remove dangerous characters and control characters
+    dangerous_chars = '<>:"|?*\0'
+    for char in dangerous_chars:
+        if char in filename:
+            raise ValueError(f"Filename cannot contain '{char}' character")
+    
+    # Check for non-printable characters
+    if not all(c.isprintable() or c.isspace() for c in filename):
+        raise ValueError("Filename contains invalid characters")
+    
+    # Check for Windows reserved names (case-insensitive)
+    reserved_names = {
+        'CON', 'PRN', 'AUX', 'NUL',
+        'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+        'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+    }
+    name_without_ext = filename.rsplit('.', 1)[0].upper()
+    if name_without_ext in reserved_names:
+        raise ValueError(f"'{filename}' is a reserved system name")
+    
+    # Limit filename length (most filesystems support 255, but leave room for extension)
+    max_length = 250
+    if len(filename) > max_length:
+        raise ValueError(f"Filename is too long (max {max_length} characters)")
+    
+    return filename
 
 
 class ClickablePath(Static, can_focus=True):
@@ -26,12 +81,22 @@ class ClickablePath(Static, can_focus=True):
         return f"Location: [link]{self.path}[/link] [dim](click to open)[/]"
     
     def on_click(self) -> None:
-        """Open the folder when clicked."""
+        """Open the folder when clicked in the system's file manager."""
         try:
-            # Use xdg-open on Linux to open the folder in file manager
-            subprocess.Popen(['xdg-open', str(self.path)])
-        except Exception:
+            system = platform.system()
+            path_str = str(self.path)
+            
+            if system == 'Darwin':  # macOS
+                subprocess.Popen(['open', path_str])
+            elif system == 'Windows':
+                subprocess.Popen(['explorer', path_str])
+            else:  # Linux and other Unix-like systems
+                subprocess.Popen(['xdg-open', path_str])
+        except FileNotFoundError:
+            # File manager command not available
             pass
+        except (OSError, subprocess.SubprocessError) as e:
+            print(f"Warning: Could not open folder: {e}")
     
     def on_focus(self) -> None:
         """Refresh when focused."""
@@ -55,6 +120,7 @@ class FilenamePrompt(ModalScreen):
             yield Label("Enter filename (without .md):", id="prompt-label")
             yield Input(placeholder="my-note", id="filename-input")
             yield Static("Press Enter to save, Escape to cancel", id="prompt-hint")
+            yield Static("Alphanumeric, spaces, hyphens, underscores only", id="prompt-rules")
     
     def on_mount(self) -> None:
         """Focus the input when mounted."""
@@ -104,6 +170,12 @@ FilenamePrompt {
     text-align: center;
     color: $text-muted;
     margin-top: 1;
+}
+
+#prompt-rules {
+    text-align: center;
+    color: $text-muted;
+    text-style: dim;
 }
 """
 
@@ -178,7 +250,8 @@ class FileBrowser(ModalScreen):
             try:
                 first_item = self.query_one(FileItem)
                 self.set_focus(first_item)
-            except:
+            except Exception:
+                # No file items available, nothing to focus
                 pass
         # Use set_timer for a slight delay to ensure rendering is complete
         self.set_timer(0.01, set_initial_focus)
@@ -367,17 +440,33 @@ class EditorScreen(Screen):
                 text_area = self.query_one("#text-area", TextArea)
                 content = text_area.text
                 
-                # Ensure .md extension
-                if not filename.endswith('.md'):
-                    filename = f"{filename}.md"
-                
-                self.current_file = self.documents_dir / filename
-                
                 try:
+                    # Sanitize the filename first
+                    safe_filename = sanitize_filename(filename)
+                    
+                    # Ensure .md extension
+                    if not safe_filename.endswith('.md'):
+                        safe_filename = f"{safe_filename}.md"
+                    
+                    # Verify the final path is within the documents directory
+                    self.current_file = self.documents_dir / safe_filename
+                    
+                    # Double-check the resolved path is still within documents_dir
+                    try:
+                        self.current_file.resolve().relative_to(self.documents_dir.resolve())
+                    except ValueError:
+                        self._update_status("Error: Invalid file path")
+                        return
+                    
                     self.current_file.write_text(content)
                     self._update_status(f"Saved: {self.current_file.name}")
+                except ValueError as e:
+                    # Validation error from sanitize_filename
+                    self._update_status(f"Invalid filename: {e}")
+                except (OSError, IOError) as e:
+                    self._update_status(f"Error saving file: {e}")
                 except Exception as e:
-                    self._update_status(f"Error: {str(e)}")
+                    self._update_status(f"Unexpected error: {e}")
         
         # If file already has a name, just save it
         if self.current_file is not None:
@@ -386,8 +475,10 @@ class EditorScreen(Screen):
             try:
                 self.current_file.write_text(content)
                 self._update_status(f"Saved: {self.current_file.name}")
+            except (OSError, IOError) as e:
+                self._update_status(f"Error saving file: {e}")
             except Exception as e:
-                self._update_status(f"Error: {str(e)}")
+                self._update_status(f"Unexpected error: {e}")
         else:
             # Prompt for filename
             self.app.push_screen(FilenamePrompt(), handle_filename)
@@ -397,13 +488,26 @@ class EditorScreen(Screen):
         def handle_file_selection(selected_file):
             if selected_file:
                 try:
+                    # Verify the selected file is within the documents directory
+                    try:
+                        selected_file.resolve().relative_to(self.documents_dir.resolve())
+                    except ValueError:
+                        self._update_status("Error: Invalid file path")
+                        return
+                    
                     self.current_file = selected_file
                     content = self.current_file.read_text()
                     text_area = self.query_one("#text-area", TextArea)
                     text_area.load_text(content)
                     self._update_status(f"Opened: {self.current_file.name}")
+                except FileNotFoundError:
+                    self._update_status(f"Error: File not found")
+                except (OSError, IOError) as e:
+                    self._update_status(f"Error reading file: {e}")
+                except UnicodeDecodeError:
+                    self._update_status(f"Error: File is not valid text")
                 except Exception as e:
-                    self._update_status(f"Error: {str(e)}")
+                    self._update_status(f"Unexpected error: {e}")
         
         self.app.push_screen(FileBrowser(self.documents_dir), handle_file_selection)
     

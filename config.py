@@ -11,9 +11,7 @@ class Config:
     """Manages application configuration and user preferences."""
     
     DEFAULT_CONFIG = {
-        "theme": "dark",
-        "accent_color": "cyan",
-        "background": "default",
+        "theme": "textual-dark",
     }
     
     def __init__(self):
@@ -27,8 +25,13 @@ class Config:
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r') as f:
-                    return {**self.DEFAULT_CONFIG, **json.load(f)}
-            except Exception:
+                    loaded_config = json.load(f)
+                    return {**self.DEFAULT_CONFIG, **loaded_config}
+            except json.JSONDecodeError as e:
+                print(f"Warning: Config file is corrupted ({e}). Using defaults.")
+                return self.DEFAULT_CONFIG.copy()
+            except (OSError, IOError) as e:
+                print(f"Warning: Could not read config file ({e}). Using defaults.")
                 return self.DEFAULT_CONFIG.copy()
         return self.DEFAULT_CONFIG.copy()
     
@@ -38,7 +41,11 @@ class Config:
             with open(self.config_file, 'w') as f:
                 json.dump(self._config, f, indent=2)
             return True
-        except Exception:
+        except (OSError, IOError) as e:
+            print(f"Error: Could not save config file: {e}")
+            return False
+        except (TypeError, ValueError) as e:
+            print(f"Error: Invalid config data: {e}")
             return False
     
     def get(self, key: str, default=None) -> Any:
