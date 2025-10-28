@@ -90,6 +90,10 @@ Contributions are welcome! Please keep the minimalist philosophy in mind:
 - Function over form
 - Simplicity over feature bloat
 
+## Notes
+Total time spent on development so far: 2 hours
+28.10.2025 - 20:00-22:30
+
 ## License
 
 See [LICENSE](LICENSE) for details.
