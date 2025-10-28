@@ -137,8 +137,8 @@ class FileBrowser(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel", priority=True),
         Binding("enter", "select", "Open", show=False),
-        Binding("down,j", "focus_next", "Next", show=False),
-        Binding("up,k", "focus_previous", "Previous", show=False),
+        Binding("down,j", "cursor_down", "Next", show=False),
+        Binding("up,k", "cursor_up", "Previous", show=False),
     ]
     
     def __init__(self, documents_dir: Path):
@@ -199,6 +199,58 @@ class FileBrowser(ModalScreen):
     def action_dismiss(self) -> None:
         """Cancel file selection."""
         self.dismiss(None)
+    
+    def action_cursor_down(self) -> None:
+        """Move to the next file item."""
+        # Get all focusable items (FileItem and ClickablePath)
+        file_items = list(self.query(FileItem))
+        
+        # Build focusable items list
+        focusable = []
+        try:
+            clickable_path = self.query_one(ClickablePath)
+            focusable.append(clickable_path)
+        except:
+            pass
+        focusable.extend(file_items)
+        
+        if not focusable:
+            return
+        
+        focused = self.focused
+        if focused in focusable:
+            current_index = focusable.index(focused)
+            next_index = (current_index + 1) % len(focusable)
+            focusable[next_index].focus()
+        else:
+            # If nothing focused, focus first
+            focusable[0].focus()
+    
+    def action_cursor_up(self) -> None:
+        """Move to the previous file item."""
+        # Get all focusable items (FileItem and ClickablePath)
+        file_items = list(self.query(FileItem))
+        
+        # Build focusable items list
+        focusable = []
+        try:
+            clickable_path = self.query_one(ClickablePath)
+            focusable.append(clickable_path)
+        except:
+            pass
+        focusable.extend(file_items)
+        
+        if not focusable:
+            return
+        
+        focused = self.focused
+        if focused in focusable:
+            current_index = focusable.index(focused)
+            prev_index = (current_index - 1) % len(focusable)
+            focusable[prev_index].focus()
+        else:
+            # If nothing focused, focus last
+            focusable[-1].focus()
 
 
 FileBrowser.CSS = """

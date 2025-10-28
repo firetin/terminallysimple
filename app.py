@@ -61,8 +61,8 @@ class MainMenu(Screen):
         Binding("1", "select_editor", "Editor", show=False),
         Binding("q", "app.quit", "Quit"),
         Binding("enter", "activate", "Select", show=True),
-        Binding("down,j", "focus_next", "Next", show=False),
-        Binding("up,k", "focus_previous", "Previous", show=False),
+        Binding("down,j", "cursor_down", "Next", show=False),
+        Binding("up,k", "cursor_up", "Previous", show=False),
     ]
 
     def compose(self) -> ComposeResult:
@@ -105,6 +105,36 @@ class MainMenu(Screen):
         focused = self.focused
         if isinstance(focused, MenuItem):
             self._activate_item(focused.id)
+    
+    def action_cursor_down(self) -> None:
+        """Move to the next menu item."""
+        menu_items = list(self.query(MenuItem))
+        if not menu_items:
+            return
+        
+        focused = self.focused
+        if focused in menu_items:
+            current_index = menu_items.index(focused)
+            next_index = (current_index + 1) % len(menu_items)
+            menu_items[next_index].focus()
+        else:
+            # If nothing focused or focused widget is not a menu item, focus first
+            menu_items[0].focus()
+    
+    def action_cursor_up(self) -> None:
+        """Move to the previous menu item."""
+        menu_items = list(self.query(MenuItem))
+        if not menu_items:
+            return
+        
+        focused = self.focused
+        if focused in menu_items:
+            current_index = menu_items.index(focused)
+            prev_index = (current_index - 1) % len(menu_items)
+            menu_items[prev_index].focus()
+        else:
+            # If nothing focused or focused widget is not a menu item, focus last
+            menu_items[-1].focus()
 
 
 class TerminallySimple(App):
@@ -139,6 +169,10 @@ class TerminallySimple(App):
     
     TITLE = "Terminally Simple"
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initializing = True
+    
     def on_mount(self) -> None:
         """Called when app starts."""
         # Apply theme from config
@@ -148,7 +182,23 @@ class TerminallySimple(App):
         else:
             self.theme = "textual-dark"
         
+        # Done initializing, now watch for theme changes
+        self._initializing = False
+        
         self.push_screen(MainMenu())
+    
+    def watch_theme(self, theme: str) -> None:
+        """Watch for theme changes and save them."""
+        # Don't save during initialization
+        if self._initializing:
+            return
+        
+        # Save the theme preference when it changes
+        if theme == "textual-light":
+            config.set("theme", "light")
+        else:
+            config.set("theme", "dark")
+        config.save()
 
 
 def main():
