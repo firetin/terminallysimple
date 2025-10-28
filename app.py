@@ -11,7 +11,6 @@ from textual.binding import Binding
 from textual.screen import Screen
 
 from editor import EditorScreen
-from settings import SettingsScreen
 from config import config
 
 
@@ -45,7 +44,6 @@ class MainMenu(Screen):
     
     BINDINGS = [
         Binding("1", "select_editor", "Editor", show=False),
-        Binding("2", "select_settings", "Settings", show=False),
         Binding("q", "quit", "Quit"),
         Binding("enter", "activate", "Select", show=False),
     ]
@@ -57,7 +55,6 @@ class MainMenu(Screen):
             Static("TERMINALLY SIMPLE", id="title"),
             Static("One app. All your tools. Zero distractions.", id="subtitle"),
             MenuItem("Text Editor", "1", "Distraction-free writing", id="item-editor"),
-            MenuItem("Settings", "2", "Customize appearance", id="item-settings"),
             MenuItem("Exit", "q", "Quit application", id="item-exit"),
             id="menu-container"
         )
@@ -86,18 +83,12 @@ class MainMenu(Screen):
         """Activate a menu item."""
         if item_id == "item-editor":
             self.action_select_editor()
-        elif item_id == "item-settings":
-            self.action_select_settings()
         elif item_id == "item-exit":
             self.app.exit()
 
     def action_select_editor(self) -> None:
         """Open the editor."""
         self.app.push_screen(EditorScreen())
-    
-    def action_select_settings(self) -> None:
-        """Open settings."""
-        self.app.push_screen(SettingsScreen())
     
     def action_activate(self) -> None:
         """Activate focused item."""
@@ -111,35 +102,33 @@ class TerminallySimple(App):
     
     CSS = """
     Screen {
+        border: double $primary;
         background: $surface;
     }
     
     #menu-container {
-        border: solid $primary;
-        width: 80%;
-        max-width: 80;
-        height: auto;
-        align: center middle;
-        padding: 2;
+        width: 100%;
+        height: 100%;
+        padding: 2 4;
         background: $surface;
     }
     
     #title {
-        text-align: center;
+        text-align: left;
         text-style: bold;
         color: $accent;
         margin-bottom: 1;
     }
     
     #subtitle {
-        text-align: center;
+        text-align: left;
         color: $text-muted;
         margin-bottom: 2;
     }
     
     MenuItem {
         height: auto;
-        padding: 1 2;
+        padding: 0 2;
         margin: 0;
     }
     

@@ -101,11 +101,11 @@ FileBrowser {
 }
 
 #browser-container {
-    border: solid $primary;
-    width: 80%;
-    max-width: 100;
+    border: double $primary;
+    width: 70%;
+    max-width: 80;
     height: auto;
-    max-height: 80%;
+    max-height: 70%;
     background: $surface;
     padding: 2;
 }
@@ -125,7 +125,7 @@ FileBrowser {
 
 #file-list {
     height: auto;
-    max-height: 30;
+    max-height: 25;
     overflow-y: auto;
     border: solid $primary-darken-2;
     padding: 1;
@@ -234,12 +234,13 @@ class EditorScreen(Screen):
 
 # Custom CSS for the editor
 EditorScreen.CSS = """
+EditorScreen {
+    border: double $primary;
+}
+
 #editor-container {
-    border: solid $primary;
-    width: 95%;
-    max-width: 120;
-    height: 90%;
-    align: center middle;
+    width: 100%;
+    height: 100%;
     padding: 0;
     background: $surface;
 }
@@ -255,5 +256,6 @@ EditorScreen.CSS = """
     height: 1fr;
     border: none;
     background: $surface;
+    padding: 0 1;
 }
 """

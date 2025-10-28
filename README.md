@@ -11,8 +11,8 @@ Terminally Simple is built on the principle that productivity tools should be fu
 ## Features
 
 ### Currently Available
-- **Text/Markdown Editor** — Distraction-free writing and journaling
-- **Settings** — Customize colors, themes, and appearance (dark/light mode)
+- **Text/Markdown Editor** — Distraction-free writing and journaling with file browser
+- **Theme Customization** — Use the palette (Ctrl+P) to change themes
 
 ### Roadmap
 - [ ] Weather forecast widget
