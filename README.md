@@ -50,6 +50,12 @@ Launch the app and navigate through available tools using the menu. Each tool ru
 python app.py
 ```
 
+## Showcase (early in development)
+
+<img width="2528" height="1291" alt="1" src="https://github.com/user-attachments/assets/895d0d46-5bb6-46ba-bc0f-b5e07c8ffa65" />
+<img width="2529" height="1289" alt="2" src="https://github.com/user-attachments/assets/dda84da4-4db7-43f4-8989-38c03e8b9d84" />
+<img width="2532" height="1291" alt="3" src="https://github.com/user-attachments/assets/2554e50b-0d4c-4254-a0ab-cc24f33478d2" />
+
 ### Text Editor
 - Files are saved in the `notes/` folder within the app directory
 - Press `Ctrl+O` to browse and open saved files
