@@ -4,13 +4,18 @@ Text/Markdown Editor - Distraction-free writing
 
 from textual.app import ComposeResult
 from textual.screen import Screen, ModalScreen
-from textual.widgets import Header, Footer, TextArea, Static, DirectoryTree
-from textual.containers import Container, Vertical
+from textual.widgets import Header, Footer, TextArea, Static, Button
+from textual.containers import Container, Vertical, Horizontal
 from textual.binding import Binding
 from pathlib import Path
 import os
 import subprocess
 import platform
+
+from constants import (
+    FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR,
+    TAB_SPACES, MAX_FILENAME_LENGTH, FOCUS_TIMER_DELAY
+)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -60,11 +65,79 @@ def sanitize_filename(filename: str) -> str:
         raise ValueError(f"'{filename}' is a reserved system name")
     
     # Limit filename length (most filesystems support 255, but leave room for extension)
-    max_length = 250
-    if len(filename) > max_length:
-        raise ValueError(f"Filename is too long (max {max_length} characters)")
+    if len(filename) > MAX_FILENAME_LENGTH:
+        raise ValueError(f"Filename is too long (max {MAX_FILENAME_LENGTH} characters)")
     
     return filename
+
+
+class ConfirmDialog(ModalScreen):
+    """Modal dialog for confirming actions."""
+    
+    def __init__(self, message: str, **kwargs):
+        super().__init__(**kwargs)
+        self.message = message
+    
+    def compose(self) -> ComposeResult:
+        """Create the confirmation dialog interface."""
+        with Container(id="confirm-container"):
+            yield Static("CONFIRM", id="confirm-title")
+            yield Static(self.message, id="confirm-message")
+            with Horizontal(id="confirm-buttons"):
+                yield Button("Yes", variant="error", id="confirm-yes")
+                yield Button("No", variant="primary", id="confirm-no")
+    
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
+        if event.button.id == "confirm-yes":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
+    
+    def on_key(self, event) -> None:
+        """Handle escape and enter keys."""
+        if event.key == "escape":
+            self.dismiss(False)
+        elif event.key == "enter":
+            # Default to No on enter
+            self.dismiss(False)
+
+
+ConfirmDialog.CSS = """
+ConfirmDialog {
+    align: center middle;
+}
+
+#confirm-container {
+    border: double $error;
+    width: 60;
+    height: auto;
+    background: $surface;
+    padding: 2;
+}
+
+#confirm-title {
+    text-align: center;
+    text-style: bold;
+    color: $error;
+    margin-bottom: 1;
+}
+
+#confirm-message {
+    text-align: center;
+    color: $text;
+    margin-bottom: 2;
+}
+
+#confirm-buttons {
+    height: auto;
+    align: center middle;
+}
+
+#confirm-buttons Button {
+    margin: 0 1;
+}
+"""
 
 
 class ClickablePath(Static, can_focus=True):
@@ -77,8 +150,8 @@ class ClickablePath(Static, can_focus=True):
     def render(self) -> str:
         """Render the path."""
         if self.has_focus:
-            return f"Location: [bold cyan][link]{self.path}[/link][/] [dim](click to open)[/]"
-        return f"Location: [link]{self.path}[/link] [dim](click to open)[/]"
+            return f"Location: [{FOCUS_COLOR}][link]{self.path}[/link][/] [{DIM_COLOR}](click to open)[/]"
+        return f"Location: [link]{self.path}[/link] [{DIM_COLOR}](click to open)[/]"
     
     def on_click(self) -> None:
         """Open the folder when clicked in the system's file manager."""
@@ -191,7 +264,7 @@ class FileItem(Static, can_focus=True):
     def render(self) -> str:
         """Render the file item - always show focus state."""
         if self.has_focus:
-            return f"[bold cyan]▸[/] {self.filename}"
+            return f"[{FOCUS_COLOR}]{FOCUS_INDICATOR}[/] {self.filename}"
         return f"  {self.filename}"
     
     def on_focus(self) -> None:
@@ -254,7 +327,7 @@ class FileBrowser(ModalScreen):
                 # No file items available, nothing to focus
                 pass
         # Use set_timer for a slight delay to ensure rendering is complete
-        self.set_timer(0.01, set_initial_focus)
+        self.set_timer(FOCUS_TIMER_DELAY, set_initial_focus)
     
     def on_click(self, event) -> None:
         """Handle clicks on file items."""
@@ -283,7 +356,8 @@ class FileBrowser(ModalScreen):
         try:
             clickable_path = self.query_one(ClickablePath)
             focusable.append(clickable_path)
-        except:
+        except Exception:
+            # No ClickablePath widget found
             pass
         focusable.extend(file_items)
         
@@ -309,7 +383,8 @@ class FileBrowser(ModalScreen):
         try:
             clickable_path = self.query_one(ClickablePath)
             focusable.append(clickable_path)
-        except:
+        except Exception:
+            # No ClickablePath widget found
             pass
         focusable.extend(file_items)
         
@@ -408,6 +483,8 @@ class EditorScreen(Screen):
     def __init__(self):
         super().__init__()
         self.current_file = None
+        self.is_modified = False  # Track if content has been modified
+        self.original_content = ""  # Store original content for comparison
         # Save to app directory instead of Documents
         self.documents_dir = Path(__file__).parent / "notes"
         self.documents_dir.mkdir(parents=True, exist_ok=True)
@@ -426,12 +503,21 @@ class EditorScreen(Screen):
         """Initialize the editor when mounted."""
         text_area = self.query_one("#text-area", TextArea)
         text_area.focus()
-        self._update_status("Ready")
+        self._update_status_with_file()
+        
+        # Watch for changes to track modified state
+        text_area.watch_text = self._on_text_changed
+    
+    def _on_text_changed(self, new_text: str) -> None:
+        """Called when text area content changes."""
+        # Check if content differs from original
+        self.is_modified = (new_text != self.original_content)
+        self._update_status_with_file()
     
     def action_insert_tab(self) -> None:
         """Insert a tab character."""
         text_area = self.query_one("#text-area", TextArea)
-        text_area.insert("    ")  # Insert 4 spaces as tab
+        text_area.insert(TAB_SPACES)
     
     def action_save(self) -> None:
         """Save the current document."""
@@ -459,7 +545,9 @@ class EditorScreen(Screen):
                         return
                     
                     self.current_file.write_text(content)
-                    self._update_status(f"Saved: {self.current_file.name}")
+                    self.is_modified = False  # Reset modified flag
+                    self.original_content = content  # Update original content
+                    self._update_status_with_file()
                 except ValueError as e:
                     # Validation error from sanitize_filename
                     self._update_status(f"Invalid filename: {e}")
@@ -474,7 +562,9 @@ class EditorScreen(Screen):
             content = text_area.text
             try:
                 self.current_file.write_text(content)
-                self._update_status(f"Saved: {self.current_file.name}")
+                self.is_modified = False  # Reset modified flag
+                self.original_content = content  # Update original content
+                self._update_status_with_file()
             except (OSError, IOError) as e:
                 self._update_status(f"Error saving file: {e}")
             except Exception as e:
@@ -499,7 +589,9 @@ class EditorScreen(Screen):
                     content = self.current_file.read_text()
                     text_area = self.query_one("#text-area", TextArea)
                     text_area.load_text(content)
-                    self._update_status(f"Opened: {self.current_file.name}")
+                    self.is_modified = False  # Reset modified flag
+                    self.original_content = content  # Store original content
+                    self._update_status_with_file()
                 except FileNotFoundError:
                     self._update_status(f"Error: File not found")
                 except (OSError, IOError) as e:
@@ -513,19 +605,53 @@ class EditorScreen(Screen):
     
     def action_new(self) -> None:
         """Create a new document."""
-        text_area = self.query_one("#text-area", TextArea)
-        text_area.clear()
-        self.current_file = None
-        self._update_status("New document")
+        def confirm_new(confirmed: bool) -> None:
+            if confirmed:
+                text_area = self.query_one("#text-area", TextArea)
+                text_area.clear()
+                self.current_file = None
+                self.is_modified = False
+                self.original_content = ""
+                self._update_status_with_file()
+        
+        # Check if there are unsaved changes
+        if self.is_modified:
+            self.app.push_screen(
+                ConfirmDialog("You have unsaved changes. Create new document anyway?"),
+                confirm_new
+            )
+        else:
+            confirm_new(True)
     
     def action_back(self) -> None:
         """Return to the main menu."""
-        self.app.pop_screen()
+        def confirm_back(confirmed: bool) -> None:
+            if confirmed:
+                self.app.pop_screen()
+        
+        # Check if there are unsaved changes
+        if self.is_modified:
+            self.app.push_screen(
+                ConfirmDialog("You have unsaved changes. Exit anyway?"),
+                confirm_back
+            )
+        else:
+            self.app.pop_screen()
     
     def _update_status(self, message: str) -> None:
         """Update the status message."""
         status = self.query_one("#editor-status", Static)
         status.update(f"  {message}")
+    
+    def _update_status_with_file(self) -> None:
+        """Update status with current filename and modified indicator."""
+        if self.current_file:
+            filename = self.current_file.name
+            modified_indicator = " [bold red]*[/]" if self.is_modified else ""
+            self._update_status(f"{filename}{modified_indicator}")
+        else:
+            modified_indicator = " [bold red]*[/]" if self.is_modified else ""
+            self._update_status(f"Untitled{modified_indicator}")
 
 
 # Custom CSS for the editor

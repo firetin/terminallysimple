@@ -9,6 +9,7 @@ from textual.containers import Container, Vertical
 from textual.binding import Binding
 
 from config import config
+from constants import SELECTED_MARKER, UNSELECTED_MARKER, FOCUS_INDICATOR, FOCUS_COLOR
 
 
 class SettingOption(Static):
@@ -23,9 +24,9 @@ class SettingOption(Static):
     
     def render(self) -> str:
         """Render the option."""
-        marker = "●" if self.selected else "○"
+        marker = SELECTED_MARKER if self.selected else UNSELECTED_MARKER
         if self.has_focus:
-            return f"[bold cyan]▸ {marker}[/] [bold]{self.label}[/]"
+            return f"[{FOCUS_COLOR}]{FOCUS_INDICATOR} {marker}[/] [bold]{self.label}[/]"
         return f"  {marker}  {self.label}"
     
     def on_focus(self) -> None:

@@ -12,7 +12,8 @@ Terminally Simple is built on the principle that productivity tools should be fu
 
 ### Currently Available
 - **Text/Markdown Editor** — Distraction-free writing and journaling with file browser
-- **Theme Customization** — Use the palette (Ctrl+P) to change themes
+- **Settings Screen** — Choose from 11 beautiful themes with live preview
+- **Cross-platform** — Works on Linux, macOS, and Windows
 
 ### Roadmap
 - [ ] Weather forecast widget
@@ -59,8 +60,28 @@ python app.py
 ### Text Editor
 - Files are saved in the `notes/` folder within the app directory
 - Press `Ctrl+O` to browse and open saved files
-- Press `Ctrl+S` to save (auto-generates timestamped filename)
+- Press `Ctrl+S` to save your document
 - Press `Ctrl+N` to start a new document
+- Press `Escape` to return to the main menu
+
+### Settings
+- Press `2` from the main menu or navigate to Settings
+- Choose from 11 beautiful themes with instant preview
+- Navigate with `j/k` or arrow keys
+- Press `Enter` to preview a theme
+- Press `s` to save your selection
+- Press `Escape` to cancel and restore original theme
+
+### Available Themes
+- Dark & Light (default Textual themes)
+- Nord - Arctic-inspired palette
+- Gruvbox - Retro warm colors
+- Catppuccin (Mocha & Latte) - Soothing pastels
+- Dracula - Popular purple-based theme
+- Tokyo Night - Inspired by Tokyo at night
+- Monokai - Classic coding theme
+- Flexoki - Flexible, accessible colors
+- Solarized Light - Scientific precision
 
 ## Contributing
 

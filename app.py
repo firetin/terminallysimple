@@ -13,6 +13,7 @@ from textual.screen import Screen
 from editor import EditorScreen
 from settings import SettingsScreen
 from config import config
+from constants import FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR, FOCUS_TIMER_DELAY
 
 
 class MenuItem(Static, can_focus=True):
@@ -43,8 +44,8 @@ class MenuItem(Static, can_focus=True):
     def render(self) -> str:
         """Render the menu item - always show focus state."""
         if self.has_focus:
-            return f"[bold cyan]▸ {self.key}[/] [bold]{self.label}[/]  [dim]{self.description}[/]"
-        return f"  {self.key}  {self.label}  [dim]{self.description}[/]"
+            return f"[{FOCUS_COLOR}]{FOCUS_INDICATOR} {self.key}[/] [bold]{self.label}[/]  [{DIM_COLOR}]{self.description}[/]"
+        return f"  {self.key}  {self.label}  [{DIM_COLOR}]{self.description}[/]"
     
     def on_focus(self) -> None:
         """Refresh when focused."""
@@ -85,7 +86,7 @@ class MainMenu(Screen):
         def set_initial_focus():
             self.set_focus(self.query_one("#item-editor"))
         # Use set_timer for a slight delay to ensure rendering is complete
-        self.set_timer(0.01, set_initial_focus)
+        self.set_timer(FOCUS_TIMER_DELAY, set_initial_focus)
 
     def on_click(self, event) -> None:
         """Handle clicks on menu items."""
