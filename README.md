@@ -1,6 +1,7 @@
 <p align="center">
-<img width="1536" height="347" alt="logo-cut" src="https://github.com/user-attachments/assets/9e6de39d-4729-4056-bff4-ef44129319bc" />
+<img width="1536" height="347" alt="logo-cutout" src="https://github.com/user-attachments/assets/7fccee89-0f30-4655-94cd-ef104ef39485" />
 </p>
+
 
 # Terminally Simple
 
