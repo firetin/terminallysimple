@@ -6,6 +6,10 @@ __pycache__/
 # Autosave files
 notes/.autosave/
 
+# Internal development docs (keep in docs/ but don't track changes)
+docs/
+REVIEW_AND_RECOMMENDATIONS.md
+
 # C extensions
 *.so
 

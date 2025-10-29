@@ -1,8 +1,14 @@
 # Terminally Simple
 
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)
+
 > One terminal app. All your essential tools. Zero distractions.
 
 A minimalist terminal application that consolidates your everyday tools into a single, elegant interface. Work with focus—write, check, create—without the noise of multiple apps.
+
+**Built with [Textual](https://textual.textualize.io/) - Modern TUI framework for Python**
 
 ## Philosophy
 
@@ -104,20 +110,55 @@ python app.py
 
 ## Contributing
 
-Contributions are welcome! Please keep the minimalist philosophy in mind:
-- Clarity over complexity
-- Function over form
-- Simplicity over feature bloat
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## Notes
-Total time spent on development so far: 6 hours
-28.10.2025 - 20:00-22:30
-29.10.2025 - 17:00-20:30
+### Development Philosophy
+- **Clarity over complexity** - Code should be readable
+- **Function over form** - Features should be practical
+- **Simplicity over feature bloat** - Keep it minimal
+- **Keyboard-driven** - Mouse optional
+
+### Quick Start for Contributors
+```bash
+git clone https://github.com/firetin/terminallysimple.git
+cd terminallysimple
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python app.py
+```
+
+## Support
+
+- 🐛 **Found a bug?** [Open an issue](https://github.com/firetin/terminallysimple/issues/new?template=bug_report.md)
+- 💡 **Have an idea?** [Request a feature](https://github.com/firetin/terminallysimple/issues/new?template=feature_request.md)
+- 💬 **Questions?** Open a [discussion](https://github.com/firetin/terminallysimple/discussions)
+
+## Roadmap
+
+Future ideas (contributions welcome!):
+- [ ] Task priorities and categories
+- [ ] Calendar integration
+- [ ] Export tasks to Markdown/CSV
+- [ ] Pomodoro timer
+- [ ] Plugin system
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE](LICENSE) for details.
+
+Copyright (c) 2025 Firetin
+
+## Acknowledgments
+
+- Built with [Textual](https://textual.textualize.io/) by Textualize.io
+- Weather data from [Open-Meteo](https://open-meteo.com/)
+- Inspired by the Unix philosophy: Do one thing and do it well
 
 ---
 
 **Built with focus. Designed for simplicity.**
+
+⭐ Star this repo if you find it useful!
