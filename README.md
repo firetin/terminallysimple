@@ -53,9 +53,7 @@ python app.py
 
 ## Showcase (early in development)
 
-<img width="2528" height="1291" alt="1" src="https://github.com/user-attachments/assets/895d0d46-5bb6-46ba-bc0f-b5e07c8ffa65" />
-<img width="2529" height="1289" alt="2" src="https://github.com/user-attachments/assets/dda84da4-4db7-43f4-8989-38c03e8b9d84" />
-<img width="2532" height="1291" alt="3" src="https://github.com/user-attachments/assets/2554e50b-0d4c-4254-a0ab-cc24f33478d2" />
+<img width="5511" height="2526" alt="ts-github" src="https://github.com/user-attachments/assets/5dc5880a-2145-42b5-a7ea-62a4b5bb7a72" />
 
 ### Text Editor
 - Files are saved in the `notes/` folder within the app directory
