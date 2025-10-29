@@ -17,11 +17,7 @@ Terminally Simple is built on the principle that productivity tools should be fu
 
 ### Roadmap
 - [ ] Weather forecast widget
-- [ ] Website security checker (ethical verification)
-- [ ] Calculator
-- [ ] Quick notes
-- [ ] Task manager
-- [ ] More tools based on community feedback
+- [ ] Task manager (to-do list)
 
 ## Tech Stack
 
