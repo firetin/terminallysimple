@@ -110,8 +110,9 @@ Contributions are welcome! Please keep the minimalist philosophy in mind:
 - Simplicity over feature bloat
 
 ## Notes
-Total time spent on development so far: 2 hours
+Total time spent on development so far: 6 hours
 28.10.2025 - 20:00-22:30
+29.10.2025 - 17:00-20:30
 
 ## License
 
