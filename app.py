@@ -4,16 +4,23 @@ Terminally Simple - A minimalist terminal application
 One app. All your essential tools. Zero distractions.
 """
 
+import logging
+from pathlib import Path
+from typing import Optional
+
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, VerticalScroll
+from textual.containers import Container
 from textual.widgets import Header, Footer, Static
 from textual.binding import Binding
 from textual.screen import Screen
 
+from base_screen import NavigableScreen
 from editor import EditorScreen
 from settings import SettingsScreen
 from config import config
-from constants import FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR, FOCUS_TIMER_DELAY
+from constants import FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR, FOCUS_TIMER_DELAY, WidgetIDs
+
+logger = logging.getLogger(__name__)
 
 
 class MenuItem(Static, can_focus=True):
@@ -56,7 +63,7 @@ class MenuItem(Static, can_focus=True):
         self.refresh()
 
 
-class MainMenu(Screen):
+class MainMenu(NavigableScreen):
     """Main menu screen with tool selection."""
     
     BINDINGS = [
@@ -72,34 +79,34 @@ class MainMenu(Screen):
         """Create child widgets for the menu."""
         yield Header(show_clock=True)
         yield Container(
-            Static("TERMINALLY SIMPLE", id="title"),
-            Static("One app. All your tools. Zero distractions.", id="subtitle"),
-            MenuItem("Text Editor", "1", "Distraction-free writing", id="item-editor"),
-            MenuItem("Settings", "2", "Customize theme and appearance", id="item-settings"),
-            MenuItem("Exit", "q", "Quit application", id="item-exit"),
-            id="menu-container"
+            Static("TERMINALLY SIMPLE", id=WidgetIDs.TITLE),
+            Static("One app. All your tools. Zero distractions.", id=WidgetIDs.SUBTITLE),
+            MenuItem("Text Editor", "1", "Distraction-free writing", id=WidgetIDs.ITEM_EDITOR),
+            MenuItem("Settings", "2", "Customize theme and appearance", id=WidgetIDs.ITEM_SETTINGS),
+            MenuItem("Exit", "q", "Quit application", id=WidgetIDs.ITEM_EXIT),
+            id=WidgetIDs.MENU_CONTAINER
         )
         yield Footer()
 
     def on_mount(self) -> None:
         """Focus first item when mounted."""
         def set_initial_focus():
-            self.set_focus(self.query_one("#item-editor"))
+            self.set_focus(self.query_one(f"#{WidgetIDs.ITEM_EDITOR}"))
         # Use set_timer for a slight delay to ensure rendering is complete
         self.set_timer(FOCUS_TIMER_DELAY, set_initial_focus)
 
-    def on_click(self, event) -> None:
+    def on_click(self, event: any) -> None:
         """Handle clicks on menu items."""
         if isinstance(event.widget, MenuItem):
             self._activate_item(event.widget.id)
 
     def _activate_item(self, item_id: str) -> None:
         """Activate a menu item."""
-        if item_id == "item-editor":
+        if item_id == WidgetIDs.ITEM_EDITOR:
             self.action_select_editor()
-        elif item_id == "item-settings":
+        elif item_id == WidgetIDs.ITEM_SETTINGS:
             self.action_select_settings()
-        elif item_id == "item-exit":
+        elif item_id == WidgetIDs.ITEM_EXIT:
             self.app.exit()
 
     def action_select_editor(self) -> None:
@@ -116,35 +123,9 @@ class MainMenu(Screen):
         if isinstance(focused, MenuItem):
             self._activate_item(focused.id)
     
-    def action_cursor_down(self) -> None:
-        """Move to the next menu item."""
-        menu_items = list(self.query(MenuItem))
-        if not menu_items:
-            return
-        
-        focused = self.focused
-        if focused in menu_items:
-            current_index = menu_items.index(focused)
-            next_index = (current_index + 1) % len(menu_items)
-            menu_items[next_index].focus()
-        else:
-            # If nothing focused or focused widget is not a menu item, focus first
-            menu_items[0].focus()
-    
-    def action_cursor_up(self) -> None:
-        """Move to the previous menu item."""
-        menu_items = list(self.query(MenuItem))
-        if not menu_items:
-            return
-        
-        focused = self.focused
-        if focused in menu_items:
-            current_index = menu_items.index(focused)
-            prev_index = (current_index - 1) % len(menu_items)
-            menu_items[prev_index].focus()
-        else:
-            # If nothing focused or focused widget is not a menu item, focus last
-            menu_items[-1].focus()
+    def get_focusable_items(self) -> list:
+        """Return menu items for navigation."""
+        return list(self.query(MenuItem))
 
 
 class TerminallySimple(App):
@@ -153,31 +134,31 @@ class TerminallySimple(App):
     # Disable the command palette
     ENABLE_COMMAND_PALETTE = False
     
-    CSS = """
-    Screen {
+    CSS = f"""
+    Screen {{
         border: double $primary;
         background: $surface;
-    }
+    }}
     
-    #menu-container {
+    #{WidgetIDs.MENU_CONTAINER} {{
         width: 100%;
         height: 100%;
         padding: 2 4;
         background: $surface;
-    }
+    }}
     
-    #title {
+    #{WidgetIDs.TITLE} {{
         text-align: left;
         text-style: bold;
         color: $accent;
         margin-bottom: 1;
-    }
+    }}
     
-    #subtitle {
+    #{WidgetIDs.SUBTITLE} {{
         text-align: left;
         color: $text-muted;
         margin-bottom: 2;
-    }
+    }}
     """
     
     TITLE = "Terminally Simple"
@@ -209,8 +190,25 @@ class TerminallySimple(App):
         config.save()
 
 
-def main():
+def main() -> None:
     """Entry point for the application."""
+    # Configure logging
+    log_dir = Path.home() / ".config" / "terminallysimple"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "app.log"
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()  # Also log to console for development
+        ]
+    )
+    
+    logger = logging.getLogger(__name__)
+    logger.info("Starting Terminally Simple")
+    
     app = TerminallySimple()
     app.run()
 

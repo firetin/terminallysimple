@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Autosave files
+notes/.autosave/
+
 # C extensions
 *.so
 

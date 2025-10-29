@@ -2,73 +2,28 @@
 Text/Markdown Editor - Distraction-free writing
 """
 
+import logging
+import os
+import platform
+import subprocess
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
 from textual.app import ComposeResult
 from textual.screen import Screen, ModalScreen
-from textual.widgets import Header, Footer, TextArea, Static, Button
+from textual.widgets import Header, Footer, TextArea, Static, Button, Input, Label
 from textual.containers import Container, Vertical, Horizontal
 from textual.binding import Binding
-from pathlib import Path
-import os
-import subprocess
-import platform
 
+from base_screen import NavigableMixin
 from constants import (
     FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR,
-    TAB_SPACES, MAX_FILENAME_LENGTH, FOCUS_TIMER_DELAY
+    TAB_SPACES, FOCUS_TIMER_DELAY, WidgetIDs
 )
+from utils.validators import sanitize_filename
 
-
-def sanitize_filename(filename: str) -> str:
-    """
-    Sanitize and validate a filename to prevent security issues.
-    
-    Args:
-        filename: The filename to sanitize
-        
-    Returns:
-        A safe filename string
-        
-    Raises:
-        ValueError: If the filename is invalid or dangerous
-    """
-    if not filename or not filename.strip():
-        raise ValueError("Filename cannot be empty")
-    
-    filename = filename.strip()
-    
-    # Remove path separators to prevent directory traversal
-    if '/' in filename or '\\' in filename:
-        raise ValueError("Filename cannot contain path separators (/ or \\)")
-    
-    # Check for parent directory references
-    if filename in ('.', '..') or filename.startswith('.'):
-        raise ValueError("Filename cannot start with '.' or be a directory reference")
-    
-    # Remove dangerous characters and control characters
-    dangerous_chars = '<>:"|?*\0'
-    for char in dangerous_chars:
-        if char in filename:
-            raise ValueError(f"Filename cannot contain '{char}' character")
-    
-    # Check for non-printable characters
-    if not all(c.isprintable() or c.isspace() for c in filename):
-        raise ValueError("Filename contains invalid characters")
-    
-    # Check for Windows reserved names (case-insensitive)
-    reserved_names = {
-        'CON', 'PRN', 'AUX', 'NUL',
-        'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-        'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
-    }
-    name_without_ext = filename.rsplit('.', 1)[0].upper()
-    if name_without_ext in reserved_names:
-        raise ValueError(f"'{filename}' is a reserved system name")
-    
-    # Limit filename length (most filesystems support 255, but leave room for extension)
-    if len(filename) > MAX_FILENAME_LENGTH:
-        raise ValueError(f"Filename is too long (max {MAX_FILENAME_LENGTH} characters)")
-    
-    return filename
+logger = logging.getLogger(__name__)
 
 
 class ConfirmDialog(ModalScreen):
@@ -80,16 +35,16 @@ class ConfirmDialog(ModalScreen):
     
     def compose(self) -> ComposeResult:
         """Create the confirmation dialog interface."""
-        with Container(id="confirm-container"):
-            yield Static("CONFIRM", id="confirm-title")
-            yield Static(self.message, id="confirm-message")
-            with Horizontal(id="confirm-buttons"):
-                yield Button("Yes", variant="error", id="confirm-yes")
-                yield Button("No", variant="primary", id="confirm-no")
+        with Container(id=WidgetIDs.CONFIRM_CONTAINER):
+            yield Static("CONFIRM", id=WidgetIDs.CONFIRM_TITLE)
+            yield Static(self.message, id=WidgetIDs.CONFIRM_MESSAGE)
+            with Horizontal(id=WidgetIDs.CONFIRM_BUTTONS):
+                yield Button("Yes", variant="error", id=WidgetIDs.CONFIRM_YES)
+                yield Button("No", variant="primary", id=WidgetIDs.CONFIRM_NO)
     
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
-        if event.button.id == "confirm-yes":
+        if event.button.id == WidgetIDs.CONFIRM_YES:
             self.dismiss(True)
         else:
             self.dismiss(False)
@@ -169,7 +124,7 @@ class ClickablePath(Static, can_focus=True):
             # File manager command not available
             pass
         except (OSError, subprocess.SubprocessError) as e:
-            print(f"Warning: Could not open folder: {e}")
+            logger.warning(f"Could not open folder: {e}")
     
     def on_focus(self) -> None:
         """Refresh when focused."""
@@ -188,16 +143,16 @@ class FilenamePrompt(ModalScreen):
         from textual.widgets import Input, Label
         from textual.containers import Vertical
         
-        with Container(id="prompt-container"):
-            yield Static("SAVE FILE", id="prompt-title")
-            yield Label("Enter filename (without .md):", id="prompt-label")
-            yield Input(placeholder="my-note", id="filename-input")
-            yield Static("Press Enter to save, Escape to cancel", id="prompt-hint")
-            yield Static("Alphanumeric, spaces, hyphens, underscores only", id="prompt-rules")
+        with Container(id=WidgetIDs.PROMPT_CONTAINER):
+            yield Static("SAVE FILE", id=WidgetIDs.PROMPT_TITLE)
+            yield Label("Enter filename (without .md):", id=WidgetIDs.PROMPT_LABEL)
+            yield Input(placeholder="my-note", id=WidgetIDs.FILENAME_INPUT)
+            yield Static("Press Enter to save, Escape to cancel", id=WidgetIDs.PROMPT_HINT)
+            yield Static("Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.PROMPT_RULES)
     
     def on_mount(self) -> None:
         """Focus the input when mounted."""
-        self.query_one("#filename-input").focus()
+        self.query_one(f"#{WidgetIDs.FILENAME_INPUT}").focus()
     
     def on_input_submitted(self, event) -> None:
         """Handle Enter key in input."""
@@ -276,7 +231,7 @@ class FileItem(Static, can_focus=True):
         self.refresh()
 
 
-class FileBrowser(ModalScreen):
+class FileBrowser(NavigableMixin, ModalScreen):
     """Modal screen for browsing and selecting files."""
     
     BINDINGS = [
@@ -286,10 +241,10 @@ class FileBrowser(ModalScreen):
         Binding("up,k", "cursor_up", "Previous", show=False),
     ]
     
-    def __init__(self, documents_dir: Path):
+    def __init__(self, documents_dir: Path) -> None:
         super().__init__()
-        self.documents_dir = documents_dir
-        self.selected_file = None
+        self.documents_dir: Path = documents_dir
+        self.selected_file: Optional[Path] = None
     
     def compose(self) -> ComposeResult:
         """Create the file browser interface."""
@@ -297,23 +252,22 @@ class FileBrowser(ModalScreen):
         files = sorted(self.documents_dir.glob("*.md"), key=os.path.getmtime, reverse=True)
         
         yield Container(
-            Static("OPEN FILE", id="browser-title"),
-            ClickablePath(self.documents_dir, id="browser-path"),
-            Static("", id="browser-spacer"),
+            Static("OPEN FILE", id=WidgetIDs.BROWSER_TITLE),
+            ClickablePath(self.documents_dir, id=WidgetIDs.BROWSER_PATH),
+            Static("", id=WidgetIDs.BROWSER_SPACER),
             Vertical(
                 *(FileItem(
                     f"{file.stem}  [dim]{self._format_time(os.path.getmtime(file))}[/]",
                     file
-                ) for file in files) if files else [Static("No files found. Save a file first!", id="no-files")],
-                id="file-list"
+                ) for file in files) if files else [Static("No files found. Save a file first!", id=WidgetIDs.NO_FILES)],
+                id=WidgetIDs.FILE_LIST
             ),
-            id="browser-container"
+            id=WidgetIDs.BROWSER_CONTAINER
         )
         yield Footer()
     
     def _format_time(self, timestamp: float) -> str:
         """Format timestamp for display."""
-        from datetime import datetime
         mod_time = datetime.fromtimestamp(timestamp)
         return mod_time.strftime("%Y-%m-%d %H:%M")
     
@@ -346,12 +300,8 @@ class FileBrowser(ModalScreen):
         """Cancel file selection."""
         self.dismiss(None)
     
-    def action_cursor_down(self) -> None:
-        """Move to the next file item."""
-        # Get all focusable items (FileItem and ClickablePath)
-        file_items = list(self.query(FileItem))
-        
-        # Build focusable items list
+    def get_focusable_items(self):
+        """Return focusable items for navigation (ClickablePath and FileItems)."""
         focusable = []
         try:
             clickable_path = self.query_one(ClickablePath)
@@ -359,46 +309,8 @@ class FileBrowser(ModalScreen):
         except Exception:
             # No ClickablePath widget found
             pass
-        focusable.extend(file_items)
-        
-        if not focusable:
-            return
-        
-        focused = self.focused
-        if focused in focusable:
-            current_index = focusable.index(focused)
-            next_index = (current_index + 1) % len(focusable)
-            focusable[next_index].focus()
-        else:
-            # If nothing focused, focus first
-            focusable[0].focus()
-    
-    def action_cursor_up(self) -> None:
-        """Move to the previous file item."""
-        # Get all focusable items (FileItem and ClickablePath)
-        file_items = list(self.query(FileItem))
-        
-        # Build focusable items list
-        focusable = []
-        try:
-            clickable_path = self.query_one(ClickablePath)
-            focusable.append(clickable_path)
-        except Exception:
-            # No ClickablePath widget found
-            pass
-        focusable.extend(file_items)
-        
-        if not focusable:
-            return
-        
-        focused = self.focused
-        if focused in focusable:
-            current_index = focusable.index(focused)
-            prev_index = (current_index - 1) % len(focusable)
-            focusable[prev_index].focus()
-        else:
-            # If nothing focused, focus last
-            focusable[-1].focus()
+        focusable.extend(list(self.query(FileItem)))
+        return focusable
 
 
 FileBrowser.CSS = """
@@ -476,54 +388,153 @@ class EditorScreen(Screen):
         Binding("ctrl+s", "save", "Save", priority=True),
         Binding("ctrl+o", "open", "Open", priority=True),
         Binding("ctrl+n", "new", "New", priority=True),
+        Binding("ctrl+a", "select_all", "Select All", show=False, priority=True),
+        Binding("ctrl+z", "undo", "Undo", show=False, priority=True),
+        Binding("ctrl+y", "redo", "Redo", show=False, priority=True),
         Binding("escape", "back", "Back", priority=True),
         Binding("tab", "insert_tab", "Tab", show=False, priority=True),
     ]
     
     def __init__(self):
         super().__init__()
-        self.current_file = None
-        self.is_modified = False  # Track if content has been modified
-        self.original_content = ""  # Store original content for comparison
+        self.current_file: Optional[Path] = None
+        self.is_modified: bool = False  # Track if content has been modified
+        self.original_content: str = ""  # Store original content for comparison
+        self.autosave_timer = None  # Timer for autosaving
+        self.autosave_enabled: bool = True  # Enable/disable autosave
+        self.autosave_interval: float = 5.0  # Autosave every 5 seconds
         # Save to app directory instead of Documents
-        self.documents_dir = Path(__file__).parent / "notes"
+        self.documents_dir: Path = Path(__file__).parent / "notes"
         self.documents_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Autosave directory for unnamed documents
+        self.autosave_dir: Path = self.documents_dir / ".autosave"
+        self.autosave_dir.mkdir(parents=True, exist_ok=True)
     
     def compose(self) -> ComposeResult:
         """Create the editor interface."""
         yield Header(show_clock=True)
         yield Container(
-            Static("", id="editor-status"),
-            TextArea(id="text-area", show_line_numbers=True),
-            id="editor-container"
+            Static("", id=WidgetIDs.EDITOR_STATUS),
+            TextArea(id=WidgetIDs.TEXT_AREA, show_line_numbers=True),
+            id=WidgetIDs.EDITOR_CONTAINER
         )
         yield Footer()
     
     def on_mount(self) -> None:
         """Initialize the editor when mounted."""
-        text_area = self.query_one("#text-area", TextArea)
+        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
         text_area.focus()
+        
+        # Check for autosaved content and offer to restore
+        self._check_autosave_recovery()
+        
         self._update_status_with_file()
         
-        # Watch for changes to track modified state
-        text_area.watch_text = self._on_text_changed
+        # Start autosave timer
+        self._start_autosave_timer()
     
-    def _on_text_changed(self, new_text: str) -> None:
-        """Called when text area content changes."""
-        # Check if content differs from original
-        self.is_modified = (new_text != self.original_content)
+    def on_unmount(self) -> None:
+        """Clean up when screen is unmounted."""
+        # Perform final autosave before unmounting (always try to save)
+        try:
+            self._autosave()
+        except Exception as e:
+            logger.error(f"Failed to autosave on unmount: {e}")
+        
+        # Stop autosave timer
+        if self.autosave_timer:
+            self.autosave_timer.stop()
+    
+    def _check_autosave_recovery(self) -> None:
+        """Check if there's an autosaved file and offer to recover it."""
+        autosave_file = self.autosave_dir / "untitled-autosave.md"
+        if autosave_file.exists():
+            try:
+                content = autosave_file.read_text()
+                if content.strip():  # Only recover if there's actual content
+                    text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+                    text_area.load_text(content)
+                    self.is_modified = True
+                    self.original_content = ""
+                    logger.info("Recovered autosaved content")
+                    # Don't delete yet - keep it until user explicitly saves with a name
+            except Exception as e:
+                logger.error(f"Failed to recover autosave: {e}")
+    
+    def _start_autosave_timer(self) -> None:
+        """Start the autosave timer."""
+        if self.autosave_enabled:
+            self.autosave_timer = self.set_interval(
+                self.autosave_interval, 
+                self._autosave
+            )
+    
+    def _autosave(self) -> None:
+        """Autosave the current document if there are changes."""
+        try:
+            text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+        except Exception as e:
+            logger.error(f"Could not get text area for autosave: {e}")
+            return
+            
+        content = text_area.text
+        
+        # Only save if there's actual content
+        if not content.strip():
+            logger.debug("Autosave skipped: no content")
+            return  # Nothing to save
+        
+        try:
+            if self.current_file:
+                # Save to existing file
+                self.current_file.write_text(content)
+                self.is_modified = False
+                self.original_content = content
+                logger.info(f"Autosaved to {self.current_file.name}")
+                self._update_status_with_file()
+            else:
+                # Save unnamed document to autosave directory
+                autosave_file = self.autosave_dir / "untitled-autosave.md"
+                autosave_file.write_text(content)
+                logger.info(f"Autosaved untitled document ({len(content)} chars)")
+                # Don't reset is_modified for unnamed docs - they still need a proper name
+        except (OSError, IOError) as e:
+            logger.error(f"Autosave failed: {e}")
+    
+    def on_text_area_changed(self, event) -> None:
+        """Handle TextArea content changes."""
+        # Mark as modified whenever text changes
+        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+        current_text = text_area.text
+        self.is_modified = (current_text != self.original_content)
         self._update_status_with_file()
     
     def action_insert_tab(self) -> None:
         """Insert a tab character."""
-        text_area = self.query_one("#text-area", TextArea)
+        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
         text_area.insert(TAB_SPACES)
+    
+    def action_select_all(self) -> None:
+        """Select all text in the editor."""
+        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+        text_area.select_all()
+    
+    def action_undo(self) -> None:
+        """Undo the last change in the editor."""
+        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+        text_area.undo()
+    
+    def action_redo(self) -> None:
+        """Redo the last undone change in the editor."""
+        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+        text_area.redo()
     
     def action_save(self) -> None:
         """Save the current document."""
         def handle_filename(filename):
             if filename:
-                text_area = self.query_one("#text-area", TextArea)
+                text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
                 content = text_area.text
                 
                 try:
@@ -547,6 +558,13 @@ class EditorScreen(Screen):
                     self.current_file.write_text(content)
                     self.is_modified = False  # Reset modified flag
                     self.original_content = content  # Update original content
+                    
+                    # Delete autosave file since we now have a proper named file
+                    autosave_file = self.autosave_dir / "untitled-autosave.md"
+                    if autosave_file.exists():
+                        autosave_file.unlink()
+                        logger.info("Deleted autosave file after saving with name")
+                    
                     self._update_status_with_file()
                 except ValueError as e:
                     # Validation error from sanitize_filename
@@ -558,7 +576,7 @@ class EditorScreen(Screen):
         
         # If file already has a name, just save it
         if self.current_file is not None:
-            text_area = self.query_one("#text-area", TextArea)
+            text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
             content = text_area.text
             try:
                 self.current_file.write_text(content)
@@ -587,7 +605,7 @@ class EditorScreen(Screen):
                     
                     self.current_file = selected_file
                     content = self.current_file.read_text()
-                    text_area = self.query_one("#text-area", TextArea)
+                    text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
                     text_area.load_text(content)
                     self.is_modified = False  # Reset modified flag
                     self.original_content = content  # Store original content
@@ -607,7 +625,7 @@ class EditorScreen(Screen):
         """Create a new document."""
         def confirm_new(confirmed: bool) -> None:
             if confirmed:
-                text_area = self.query_one("#text-area", TextArea)
+                text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
                 text_area.clear()
                 self.current_file = None
                 self.is_modified = False
@@ -640,7 +658,7 @@ class EditorScreen(Screen):
     
     def _update_status(self, message: str) -> None:
         """Update the status message."""
-        status = self.query_one("#editor-status", Static)
+        status = self.query_one(f"#{WidgetIDs.EDITOR_STATUS}", Static)
         status.update(f"  {message}")
     
     def _update_status_with_file(self) -> None:

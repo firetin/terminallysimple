@@ -3,18 +3,21 @@ Configuration management for Terminally Simple
 """
 
 import json
+import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class Config:
     """Manages application configuration and user preferences."""
     
-    DEFAULT_CONFIG = {
+    DEFAULT_CONFIG: Dict[str, Any] = {
         "theme": "textual-dark",
     }
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.config_dir = Path.home() / ".config" / "terminallysimple"
         self.config_file = self.config_dir / "config.json"
         self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -25,13 +28,13 @@ class Config:
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r') as f:
-                    loaded_config = json.load(f)
+                    loaded_config: Dict[str, Any] = json.load(f)
                     return {**self.DEFAULT_CONFIG, **loaded_config}
             except json.JSONDecodeError as e:
-                print(f"Warning: Config file is corrupted ({e}). Using defaults.")
+                logger.warning(f"Config file is corrupted ({e}). Using defaults.")
                 return self.DEFAULT_CONFIG.copy()
             except (OSError, IOError) as e:
-                print(f"Warning: Could not read config file ({e}). Using defaults.")
+                logger.warning(f"Could not read config file: {e}. Using defaults.")
                 return self.DEFAULT_CONFIG.copy()
         return self.DEFAULT_CONFIG.copy()
     
@@ -42,13 +45,13 @@ class Config:
                 json.dump(self._config, f, indent=2)
             return True
         except (OSError, IOError) as e:
-            print(f"Error: Could not save config file: {e}")
+            logger.error(f"Could not save config file: {e}")
             return False
         except (TypeError, ValueError) as e:
-            print(f"Error: Invalid config data: {e}")
+            logger.error(f"Invalid config data: {e}")
             return False
     
-    def get(self, key: str, default=None) -> Any:
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
         """Get a configuration value."""
         return self._config.get(key, default)
     

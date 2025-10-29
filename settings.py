@@ -2,14 +2,19 @@
 Settings interface for customizing the app
 """
 
+import logging
+from typing import List, Optional, Tuple
+
 from textual.app import ComposeResult
-from textual.screen import Screen
 from textual.widgets import Header, Footer, Static
 from textual.containers import Container, Vertical
 from textual.binding import Binding
 
+from base_screen import NavigableScreen
 from config import config
-from constants import SELECTED_MARKER, UNSELECTED_MARKER, FOCUS_INDICATOR, FOCUS_COLOR
+from constants import SELECTED_MARKER, UNSELECTED_MARKER, FOCUS_INDICATOR, FOCUS_COLOR, WidgetIDs
+
+logger = logging.getLogger(__name__), WidgetIDs
 
 
 class SettingOption(Static):
@@ -38,11 +43,11 @@ class SettingOption(Static):
         self.refresh()
 
 
-class SettingsScreen(Screen):
+class SettingsScreen(NavigableScreen):
     """Settings screen for theme customization."""
     
     # Available Textual themes
-    THEMES = [
+    THEMES: List[Tuple[str, str]] = [
         ("Dark", "textual-dark"),
         ("Light", "textual-light"),
         ("Nord", "nord"),
@@ -72,8 +77,8 @@ class SettingsScreen(Screen):
         
         yield Header(show_clock=True)
         yield Container(
-            Static("SETTINGS", id="settings-title"),
-            Static("Select your theme", id="settings-subtitle"),
+            Static("SETTINGS", id=WidgetIDs.SETTINGS_TITLE),
+            Static("Select your theme", id=WidgetIDs.SETTINGS_SUBTITLE),
             
             Vertical(
                 *(SettingOption(
@@ -82,11 +87,11 @@ class SettingsScreen(Screen):
                     selected=(value == current_theme),
                     id=f"opt-{value}"
                 ) for label, value in self.THEMES),
-                id="theme-list"
+                id=WidgetIDs.THEME_LIST
             ),
             
-            Static("", id="settings-status"),
-            id="settings-container"
+            Static("", id=WidgetIDs.SETTINGS_STATUS),
+            id=WidgetIDs.SETTINGS_CONTAINER
         )
         yield Footer()
     
@@ -104,7 +109,7 @@ class SettingsScreen(Screen):
             except Exception:
                 pass
     
-    def on_click(self, event) -> None:
+    def on_click(self, event: any) -> None:
         """Handle clicks on options."""
         if isinstance(event.widget, SettingOption):
             self._toggle_option(event.widget)
@@ -168,39 +173,13 @@ class SettingsScreen(Screen):
         self.app.apply_theme_from_config()
         self.app.pop_screen()
     
-    def action_cursor_down(self) -> None:
-        """Move to the next setting option."""
-        setting_options = list(self.query(SettingOption))
-        if not setting_options:
-            return
-        
-        focused = self.focused
-        if focused in setting_options:
-            current_index = setting_options.index(focused)
-            next_index = (current_index + 1) % len(setting_options)
-            setting_options[next_index].focus()
-        else:
-            # If nothing focused or focused widget is not a setting option, focus first
-            setting_options[0].focus()
-    
-    def action_cursor_up(self) -> None:
-        """Move to the previous setting option."""
-        setting_options = list(self.query(SettingOption))
-        if not setting_options:
-            return
-        
-        focused = self.focused
-        if focused in setting_options:
-            current_index = setting_options.index(focused)
-            prev_index = (current_index - 1) % len(setting_options)
-            setting_options[prev_index].focus()
-        else:
-            # If nothing focused or focused widget is not a setting option, focus last
-            setting_options[-1].focus()
+    def get_focusable_items(self) -> list:
+        """Return setting options for navigation."""
+        return list(self.query(SettingOption))
     
     def _update_status(self, message: str) -> None:
         """Update the status message."""
-        status = self.query_one("#settings-status", Static)
+        status = self.query_one(f"#{WidgetIDs.SETTINGS_STATUS}", Static)
         status.update(message)
 
 
