@@ -1,9 +1,8 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/bb814231-793b-4f6c-ab7f-ee881e43bbfc" alt="logo" width="512">
+<img width="1536" height="347" alt="logo-cut" src="https://github.com/user-attachments/assets/9e6de39d-4729-4056-bff4-ef44129319bc" />
 </p>
+
 # Terminally Simple
-
-
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
