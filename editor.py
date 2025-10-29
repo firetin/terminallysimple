@@ -8,13 +8,15 @@ import platform
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from textual.app import ComposeResult
+from textual.events import Click
 from textual.screen import Screen, ModalScreen
-from textual.widgets import Header, Footer, TextArea, Static, Button, Input, Label
+from textual.widgets import Footer, TextArea, Static, Button, Input, Label
 from textual.containers import Container, Vertical, Horizontal
 from textual.binding import Binding
+from textual.widget import Widget
 
 from base_screen import NavigableMixin
 from constants import (
@@ -22,6 +24,7 @@ from constants import (
     TAB_SPACES, FOCUS_TIMER_DELAY, WidgetIDs
 )
 from utils.validators import sanitize_filename
+from widgets.system_header import SystemHeader
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +211,88 @@ FilenamePrompt {
 """
 
 
+class RenamePrompt(ModalScreen):
+    """Modal screen for renaming a file."""
+    
+    def __init__(self, current_filename: str, **kwargs):
+        super().__init__(**kwargs)
+        self.current_filename = current_filename
+    
+    def compose(self) -> ComposeResult:
+        """Create the rename prompt interface."""
+        from textual.widgets import Input, Label
+        from textual.containers import Vertical
+        
+        # Remove .md extension for display
+        display_name = self.current_filename.replace('.md', '') if self.current_filename.endswith('.md') else self.current_filename
+        
+        with Container(id=WidgetIDs.RENAME_CONTAINER):
+            yield Static("RENAME FILE", id=WidgetIDs.RENAME_TITLE)
+            yield Label("Enter new filename (without .md):", id=WidgetIDs.RENAME_LABEL)
+            yield Input(value=display_name, placeholder="my-note", id=WidgetIDs.RENAME_INPUT)
+            yield Static("Press Enter to rename, Escape to cancel", id=WidgetIDs.RENAME_HINT)
+            yield Static("Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.RENAME_RULES)
+    
+    def on_mount(self) -> None:
+        """Focus the input when mounted and select all text."""
+        input_widget = self.query_one(f"#{WidgetIDs.RENAME_INPUT}", Input)
+        input_widget.focus()
+        input_widget.action_select_all()
+    
+    def on_input_submitted(self, event) -> None:
+        """Handle Enter key in input."""
+        filename = event.value.strip()
+        self.dismiss(filename if filename else None)
+    
+    def on_key(self, event) -> None:
+        """Handle escape key."""
+        if event.key == "escape":
+            self.dismiss(None)
+
+
+RenamePrompt.CSS = """
+RenamePrompt {
+    align: center middle;
+}
+
+#rename-container {
+    border: double $secondary;
+    width: 60;
+    height: auto;
+    background: $surface;
+    padding: 2;
+}
+
+#rename-title {
+    text-align: center;
+    text-style: bold;
+    color: $secondary;
+    margin-bottom: 1;
+}
+
+#rename-label {
+    color: $text;
+    margin-bottom: 1;
+}
+
+#rename-input {
+    margin-bottom: 1;
+}
+
+#rename-hint {
+    text-align: center;
+    color: $text-muted;
+    margin-top: 1;
+}
+
+#rename-rules {
+    text-align: center;
+    color: $text-muted;
+    text-style: dim;
+}
+"""
+
+
 class FileItem(Static, can_focus=True):
     """A clickable file item in the browser."""
     
@@ -273,7 +358,7 @@ class FileBrowser(NavigableMixin, ModalScreen):
     
     def on_mount(self) -> None:
         """Focus first file when mounted."""
-        def set_initial_focus():
+        def set_initial_focus() -> None:
             try:
                 first_item = self.query_one(FileItem)
                 self.set_focus(first_item)
@@ -283,7 +368,7 @@ class FileBrowser(NavigableMixin, ModalScreen):
         # Use set_timer for a slight delay to ensure rendering is complete
         self.set_timer(FOCUS_TIMER_DELAY, set_initial_focus)
     
-    def on_click(self, event) -> None:
+    def on_click(self, event: Click) -> None:
         """Handle clicks on file items."""
         if isinstance(event.widget, FileItem):
             self.selected_file = event.widget.filepath
@@ -300,9 +385,9 @@ class FileBrowser(NavigableMixin, ModalScreen):
         """Cancel file selection."""
         self.dismiss(None)
     
-    def get_focusable_items(self):
+    def get_focusable_items(self) -> List[Widget]:
         """Return focusable items for navigation (ClickablePath and FileItems)."""
-        focusable = []
+        focusable: List[Widget] = []
         try:
             clickable_path = self.query_one(ClickablePath)
             focusable.append(clickable_path)
@@ -388,6 +473,7 @@ class EditorScreen(Screen):
         Binding("ctrl+s", "save", "Save", priority=True),
         Binding("ctrl+o", "open", "Open", priority=True),
         Binding("ctrl+n", "new", "New", priority=True),
+        Binding("ctrl+r", "rename", "Rename", priority=True),
         Binding("ctrl+a", "select_all", "Select All", show=False, priority=True),
         Binding("ctrl+z", "undo", "Undo", show=False, priority=True),
         Binding("ctrl+y", "redo", "Redo", show=False, priority=True),
@@ -402,7 +488,7 @@ class EditorScreen(Screen):
         self.original_content: str = ""  # Store original content for comparison
         self.autosave_timer = None  # Timer for autosaving
         self.autosave_enabled: bool = True  # Enable/disable autosave
-        self.autosave_interval: float = 5.0  # Autosave every 5 seconds
+        self.autosave_interval: float = 30.0  # Autosave every 30 seconds
         # Save to app directory instead of Documents
         self.documents_dir: Path = Path(__file__).parent / "notes"
         self.documents_dir.mkdir(parents=True, exist_ok=True)
@@ -413,7 +499,7 @@ class EditorScreen(Screen):
     
     def compose(self) -> ComposeResult:
         """Create the editor interface."""
-        yield Header(show_clock=True)
+        yield SystemHeader(show_clock=True)
         yield Container(
             Static("", id=WidgetIDs.EDITOR_STATUS),
             TextArea(id=WidgetIDs.TEXT_AREA, show_line_numbers=True),
@@ -475,7 +561,8 @@ class EditorScreen(Screen):
         try:
             text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
         except Exception as e:
-            logger.error(f"Could not get text area for autosave: {e}")
+            # Text area not accessible (e.g., modal is open), skip autosave
+            logger.debug(f"Autosave skipped: text area not accessible")
             return
             
         content = text_area.text
@@ -491,13 +578,13 @@ class EditorScreen(Screen):
                 self.current_file.write_text(content)
                 self.is_modified = False
                 self.original_content = content
-                logger.info(f"Autosaved to {self.current_file.name}")
-                self._update_status_with_file()
+                logger.debug(f"Autosaved to {self.current_file.name}")
+                # Don't update status bar during autosave to avoid flickering
             else:
                 # Save unnamed document to autosave directory
                 autosave_file = self.autosave_dir / "untitled-autosave.md"
                 autosave_file.write_text(content)
-                logger.info(f"Autosaved untitled document ({len(content)} chars)")
+                logger.debug(f"Autosaved untitled document ({len(content)} chars)")
                 # Don't reset is_modified for unnamed docs - they still need a proper name
         except (OSError, IOError) as e:
             logger.error(f"Autosave failed: {e}")
@@ -532,7 +619,7 @@ class EditorScreen(Screen):
     
     def action_save(self) -> None:
         """Save the current document."""
-        def handle_filename(filename):
+        def handle_filename(filename: Optional[str]) -> None:
             if filename:
                 text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
                 content = text_area.text
@@ -593,7 +680,7 @@ class EditorScreen(Screen):
     
     def action_open(self) -> None:
         """Open a file from the documents directory."""
-        def handle_file_selection(selected_file):
+        def handle_file_selection(selected_file: Optional[Path]) -> None:
             if selected_file:
                 try:
                     # Verify the selected file is within the documents directory
@@ -641,6 +728,71 @@ class EditorScreen(Screen):
         else:
             confirm_new(True)
     
+    def action_rename(self) -> None:
+        """Rename the current file."""
+        # Can only rename if there's a current file
+        if not self.current_file:
+            self._update_status("Cannot rename: No file is currently open")
+            return
+        
+        def handle_rename(new_filename: Optional[str]) -> None:
+            if new_filename:
+                try:
+                    # Sanitize the new filename
+                    safe_filename = sanitize_filename(new_filename)
+                    
+                    # Ensure .md extension
+                    if not safe_filename.endswith('.md'):
+                        safe_filename = f"{safe_filename}.md"
+                    
+                    # Create the new file path
+                    new_file_path = self.documents_dir / safe_filename
+                    
+                    # Double-check the resolved path is still within documents_dir
+                    try:
+                        new_file_path.resolve().relative_to(self.documents_dir.resolve())
+                    except ValueError:
+                        self._update_status("Error: Invalid file path")
+                        return
+                    
+                    # Check if the new filename already exists (and it's not the same file)
+                    if new_file_path.exists() and new_file_path != self.current_file:
+                        self._update_status(f"Error: File '{safe_filename}' already exists")
+                        return
+                    
+                    # If the name hasn't changed, just return
+                    if new_file_path == self.current_file:
+                        self._update_status("File name unchanged")
+                        return
+                    
+                    # Store old file path
+                    old_file_path = self.current_file
+                    
+                    # Rename the file
+                    old_file_path.rename(new_file_path)
+                    
+                    # Update current file reference
+                    self.current_file = new_file_path
+                    
+                    # Update status
+                    self._update_status_with_file()
+                    logger.info(f"Renamed file from {old_file_path.name} to {new_file_path.name}")
+                    
+                except ValueError as e:
+                    # Validation error from sanitize_filename
+                    self._update_status(f"Invalid filename: {e}")
+                except FileNotFoundError:
+                    self._update_status("Error: Original file not found")
+                except (OSError, IOError) as e:
+                    self._update_status(f"Error renaming file: {e}")
+                except Exception as e:
+                    self._update_status(f"Unexpected error: {e}")
+                    logger.error(f"Error renaming file: {e}")
+        
+        # Show rename prompt with current filename
+        current_name = self.current_file.name
+        self.app.push_screen(RenamePrompt(current_name), handle_rename)
+    
     def action_back(self) -> None:
         """Return to the main menu."""
         def confirm_back(confirmed: bool) -> None:
@@ -658,8 +810,12 @@ class EditorScreen(Screen):
     
     def _update_status(self, message: str) -> None:
         """Update the status message."""
-        status = self.query_one(f"#{WidgetIDs.EDITOR_STATUS}", Static)
-        status.update(f"  {message}")
+        try:
+            status = self.query_one(f"#{WidgetIDs.EDITOR_STATUS}", Static)
+            status.update(f"  {message}")
+        except Exception:
+            # Status widget not found (e.g., modal is open)
+            pass
     
     def _update_status_with_file(self) -> None:
         """Update status with current filename and modified indicator."""

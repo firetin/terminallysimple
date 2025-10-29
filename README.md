@@ -59,15 +59,16 @@ python app.py
 
 ### Text Editor
 - Files are saved in the `notes/` folder within the app directory
-- **Autosave:** Your work is automatically saved every 5 seconds
+- **Autosave:** Your work is automatically saved every 30 seconds
 - Press `Ctrl+O` to browse and open saved files
 - Press `Ctrl+S` to save your document
 - Press `Ctrl+N` to start a new document
+- Press `Ctrl+R` to rename the current file
 - Press `Ctrl+A` to select all text
 - Press `Ctrl+Z` to undo changes
 - Press `Ctrl+Y` to redo changes
 - Press `Escape` to return to the main menu
-- Maximum data loss: 5 seconds (thanks to autosave)
+- Maximum data loss: 30 seconds (thanks to autosave)
 
 ### Settings
 - Press `2` from the main menu or navigate to Settings

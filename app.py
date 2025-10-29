@@ -6,19 +6,22 @@ One app. All your essential tools. Zero distractions.
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
-from textual.widgets import Header, Footer, Static
+from textual.events import Click
+from textual.widgets import Footer, Static
 from textual.binding import Binding
 from textual.screen import Screen
+from textual.widget import Widget
 
 from base_screen import NavigableScreen
 from editor import EditorScreen
 from settings import SettingsScreen
 from config import config
 from constants import FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR, FOCUS_TIMER_DELAY, WidgetIDs
+from widgets.system_header import SystemHeader
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +80,7 @@ class MainMenu(NavigableScreen):
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the menu."""
-        yield Header(show_clock=True)
+        yield SystemHeader(show_clock=True)
         yield Container(
             Static("TERMINALLY SIMPLE", id=WidgetIDs.TITLE),
             Static("One app. All your tools. Zero distractions.", id=WidgetIDs.SUBTITLE),
@@ -90,12 +93,12 @@ class MainMenu(NavigableScreen):
 
     def on_mount(self) -> None:
         """Focus first item when mounted."""
-        def set_initial_focus():
+        def set_initial_focus() -> None:
             self.set_focus(self.query_one(f"#{WidgetIDs.ITEM_EDITOR}"))
         # Use set_timer for a slight delay to ensure rendering is complete
         self.set_timer(FOCUS_TIMER_DELAY, set_initial_focus)
 
-    def on_click(self, event: any) -> None:
+    def on_click(self, event: Click) -> None:
         """Handle clicks on menu items."""
         if isinstance(event.widget, MenuItem):
             self._activate_item(event.widget.id)
@@ -123,7 +126,7 @@ class MainMenu(NavigableScreen):
         if isinstance(focused, MenuItem):
             self._activate_item(focused.id)
     
-    def get_focusable_items(self) -> list:
+    def get_focusable_items(self) -> List[Widget]:
         """Return menu items for navigation."""
         return list(self.query(MenuItem))
 

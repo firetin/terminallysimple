@@ -3,18 +3,21 @@ Settings interface for customizing the app
 """
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from textual.app import ComposeResult
-from textual.widgets import Header, Footer, Static
+from textual.events import Click
+from textual.widgets import Footer, Static
 from textual.containers import Container, Vertical
 from textual.binding import Binding
+from textual.widget import Widget
 
 from base_screen import NavigableScreen
 from config import config
 from constants import SELECTED_MARKER, UNSELECTED_MARKER, FOCUS_INDICATOR, FOCUS_COLOR, WidgetIDs
+from widgets.system_header import SystemHeader
 
-logger = logging.getLogger(__name__), WidgetIDs
+logger = logging.getLogger(__name__)
 
 
 class SettingOption(Static):
@@ -75,7 +78,7 @@ class SettingsScreen(NavigableScreen):
         # Get current theme from config
         current_theme = config.get("theme", "textual-dark")
         
-        yield Header(show_clock=True)
+        yield SystemHeader(show_clock=True)
         yield Container(
             Static("SETTINGS", id=WidgetIDs.SETTINGS_TITLE),
             Static("Select your theme", id=WidgetIDs.SETTINGS_SUBTITLE),
@@ -109,7 +112,7 @@ class SettingsScreen(NavigableScreen):
             except Exception:
                 pass
     
-    def on_click(self, event: any) -> None:
+    def on_click(self, event: Click) -> None:
         """Handle clicks on options."""
         if isinstance(event.widget, SettingOption):
             self._toggle_option(event.widget)
@@ -173,7 +176,7 @@ class SettingsScreen(NavigableScreen):
         self.app.apply_theme_from_config()
         self.app.pop_screen()
     
-    def get_focusable_items(self) -> list:
+    def get_focusable_items(self) -> List[Widget]:
         """Return setting options for navigation."""
         return list(self.query(SettingOption))
     

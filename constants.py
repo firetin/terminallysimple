@@ -4,6 +4,7 @@ Constants used throughout Terminally Simple
 
 # Timing
 FOCUS_TIMER_DELAY: float = 0.01  # Delay for setting initial focus (seconds)
+AUTOSAVE_INTERVAL: float = 30.0  # Autosave interval in seconds
 
 # Editor
 TAB_SPACES: str = "    "  # 4 spaces for tab character
@@ -50,6 +51,14 @@ class WidgetIDs:
     FILENAME_INPUT = "filename-input"
     PROMPT_HINT = "prompt-hint"
     PROMPT_RULES = "prompt-rules"
+    
+    # Rename Dialog
+    RENAME_CONTAINER = "rename-container"
+    RENAME_TITLE = "rename-title"
+    RENAME_LABEL = "rename-label"
+    RENAME_INPUT = "rename-input"
+    RENAME_HINT = "rename-hint"
+    RENAME_RULES = "rename-rules"
     
     # Confirm Dialog
     CONFIRM_CONTAINER = "confirm-container"
