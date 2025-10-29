@@ -51,7 +51,7 @@ Launch the app and navigate through available tools using the menu. Each tool ru
 python app.py
 ```
 
-## Showcase (early in development)
+## Showcase
 
 <img width="5511" height="2526" alt="ts-github" src="https://github.com/user-attachments/assets/5dc5880a-2145-42b5-a7ea-62a4b5bb7a72" />
 
