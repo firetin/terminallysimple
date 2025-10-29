@@ -12,12 +12,10 @@ Terminally Simple is built on the principle that productivity tools should be fu
 
 ### Currently Available
 - **Text/Markdown Editor** — Distraction-free writing and journaling with file browser
+- **Task Manager** — Simple to-do list to track your tasks
 - **Settings Screen** — Choose from 11 beautiful themes with live preview
 - **Weather Widget** — Real-time weather and hourly forecast for any city worldwide
 - **Cross-platform** — Works on Linux, macOS, and Windows
-
-### Roadmap
-- [ ] Task manager (to-do list)
 
 ## Tech Stack
 
@@ -65,6 +63,17 @@ python app.py
 - Press `Ctrl+Y` to redo changes
 - Press `Escape` to return to the main menu
 - Maximum data loss: 30 seconds (thanks to autosave)
+
+### Task Manager
+- Simple to-do list for tracking your tasks
+- Press `a` to add a new task
+- Press `d` to delete the focused task
+- Press `e` to edit the focused task
+- Press `Space` or `Enter` to toggle task completion
+- Press `c` to clear all completed tasks
+- Navigate with `j/k` or arrow keys
+- Tasks are automatically saved to `~/.config/terminallysimple/tasks.json`
+- Press `Escape` to return to the main menu
 
 ### Settings
 - Press `2` from the main menu or navigate to Settings

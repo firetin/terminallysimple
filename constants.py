@@ -28,6 +28,7 @@ class WidgetIDs:
     TITLE = "title"
     SUBTITLE = "subtitle"
     ITEM_EDITOR = "item-editor"
+    ITEM_TASKS = "item-tasks"
     ITEM_SETTINGS = "item-settings"
     ITEM_EXIT = "item-exit"
     

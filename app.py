@@ -18,6 +18,7 @@ from textual.widget import Widget
 
 from base_screen import NavigableScreen
 from editor import EditorScreen
+from tasks import TaskManagerScreen
 from settings import SettingsScreen
 from config import config
 from constants import FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR, FOCUS_TIMER_DELAY, WidgetIDs
@@ -71,7 +72,8 @@ class MainMenu(NavigableScreen):
     
     BINDINGS = [
         Binding("1", "select_editor", "Editor", show=False),
-        Binding("2", "select_settings", "Settings", show=False),
+        Binding("2", "select_tasks", "Tasks", show=False),
+        Binding("3", "select_settings", "Settings", show=False),
         Binding("q", "app.quit", "Quit"),
         Binding("enter", "activate", "Select", show=True),
         Binding("down,j", "cursor_down", "Next", show=False),
@@ -85,7 +87,8 @@ class MainMenu(NavigableScreen):
             Static("TERMINALLY SIMPLE", id=WidgetIDs.TITLE),
             Static("One app. All your tools. Zero distractions.", id=WidgetIDs.SUBTITLE),
             MenuItem("Text Editor", "1", "Distraction-free writing", id=WidgetIDs.ITEM_EDITOR),
-            MenuItem("Settings", "2", "Customize theme and appearance", id=WidgetIDs.ITEM_SETTINGS),
+            MenuItem("Task Manager", "2", "Simple to-do list", id=WidgetIDs.ITEM_TASKS),
+            MenuItem("Settings", "3", "Customize theme and appearance", id=WidgetIDs.ITEM_SETTINGS),
             MenuItem("Exit", "q", "Quit application", id=WidgetIDs.ITEM_EXIT),
             id=WidgetIDs.MENU_CONTAINER
         )
@@ -107,6 +110,8 @@ class MainMenu(NavigableScreen):
         """Activate a menu item."""
         if item_id == WidgetIDs.ITEM_EDITOR:
             self.action_select_editor()
+        elif item_id == WidgetIDs.ITEM_TASKS:
+            self.action_select_tasks()
         elif item_id == WidgetIDs.ITEM_SETTINGS:
             self.action_select_settings()
         elif item_id == WidgetIDs.ITEM_EXIT:
@@ -115,6 +120,10 @@ class MainMenu(NavigableScreen):
     def action_select_editor(self) -> None:
         """Open the editor."""
         self.app.push_screen(EditorScreen())
+    
+    def action_select_tasks(self) -> None:
+        """Open the task manager."""
+        self.app.push_screen(TaskManagerScreen())
     
     def action_select_settings(self) -> None:
         """Open the settings screen."""
@@ -200,14 +209,19 @@ def main() -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "app.log"
     
+    # Configure logging to only write to file, not console
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()  # Also log to console for development
+            logging.FileHandler(log_file)
         ]
     )
+    
+    # Suppress noisy third-party loggers
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("hpack").setLevel(logging.WARNING)
     
     logger = logging.getLogger(__name__)
     logger.info("Starting Terminally Simple")
