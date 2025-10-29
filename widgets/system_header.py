@@ -12,6 +12,7 @@ from textual.app import ComposeResult, RenderResult
 from textual.reactive import reactive
 from textual.widgets import Static
 from textual.widget import Widget
+from textual.events import Resize
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,10 @@ class SystemHeader(Widget):
         if self._update_timer:
             self._update_timer.stop()
     
+    def on_resize(self, event: Resize) -> None:
+        """Handle resize events to ensure proper layout."""
+        self._update_display()
+    
     def _update_system_stats(self) -> None:
         """Update CPU and RAM usage statistics."""
         try:
@@ -100,8 +105,12 @@ class SystemHeader(Widget):
             title_str = str(title)
             title_length = len(title_str)
             
-            # Calculate total width
+            # Calculate total width - ensure we have a valid size
             total_width = self.size.width
+            
+            # If size is not yet available (0), skip the update
+            if total_width == 0:
+                return
             
             # To center the title in the entire width, we need to position it at:
             # (total_width / 2) - (title_length / 2)
