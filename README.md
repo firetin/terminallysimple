@@ -1,4 +1,9 @@
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/bb814231-793b-4f6c-ab7f-ee881e43bbfc" alt="logo" width="256">
+</p>
 # Terminally Simple
+
+
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
