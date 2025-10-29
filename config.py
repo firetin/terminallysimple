@@ -15,6 +15,9 @@ class Config:
     
     DEFAULT_CONFIG: Dict[str, Any] = {
         "theme": "textual-dark",
+        "weather_city": None,
+        "weather_latitude": None,
+        "weather_longitude": None,
     }
     
     def __init__(self) -> None:

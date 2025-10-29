@@ -13,10 +13,10 @@ Terminally Simple is built on the principle that productivity tools should be fu
 ### Currently Available
 - **Text/Markdown Editor** — Distraction-free writing and journaling with file browser
 - **Settings Screen** — Choose from 11 beautiful themes with live preview
+- **Weather Widget** — Real-time weather and hourly forecast for any city worldwide
 - **Cross-platform** — Works on Linux, macOS, and Windows
 
 ### Roadmap
-- [ ] Weather forecast widget
 - [ ] Task manager (to-do list)
 
 ## Tech Stack
@@ -33,7 +33,7 @@ git clone https://github.com/firetin/terminallysimple.git
 cd terminallysimple
 
 # Install dependencies
-pip install textual
+pip install -r requirements.txt
 
 # Run the app
 python app.py
@@ -73,6 +73,14 @@ python app.py
 - Press `Enter` to preview a theme
 - Press `s` to save your selection
 - Press `Escape` to cancel and restore original theme
+
+### Weather Widget
+- Click "Weather" in the top-right header to set up your city
+- Shows real-time temperature and weather icon (☀️ ☁️ 💧 ❄️ ⛈️)
+- Click again to view detailed hourly forecast
+- Powered by [Open-Meteo API](https://open-meteo.com/) - completely free, no API key needed
+- Updates automatically every 30 minutes
+- Works for any city worldwide
 
 ### Available Themes
 - Dark & Light (default Textual themes)

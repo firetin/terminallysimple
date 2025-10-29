@@ -74,3 +74,18 @@ class WidgetIDs:
     SETTINGS_SUBTITLE = "settings-subtitle"
     THEME_LIST = "theme-list"
     SETTINGS_STATUS = "settings-status"
+    
+    # Weather
+    WEATHER_CITY_CONTAINER = "weather-city-container"
+    WEATHER_CITY_TITLE = "weather-city-title"
+    WEATHER_CITY_LABEL = "weather-city-label"
+    WEATHER_CITY_INPUT = "weather-city-input"
+    WEATHER_CITY_HINT = "weather-city-hint"
+    WEATHER_CITY_ERROR = "weather-city-error"
+    WEATHER_FORECAST_CONTAINER = "weather-forecast-container"
+    WEATHER_FORECAST_TITLE = "weather-forecast-title"
+    WEATHER_FORECAST_CURRENT = "weather-forecast-current"
+    WEATHER_FORECAST_LIST = "weather-forecast-list"
+    WEATHER_FORECAST_BUTTONS = "weather-forecast-buttons"
+    WEATHER_CHANGE_CITY_BTN = "weather-change-city-btn"
+    WEATHER_FORECAST_HINT = "weather-forecast-hint"
