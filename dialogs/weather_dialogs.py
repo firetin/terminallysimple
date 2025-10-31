@@ -3,7 +3,7 @@ Weather-related dialog screens
 """
 
 import logging
-from typing import List, Optional
+from typing import Optional, Callable, Any
 
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
@@ -16,7 +16,7 @@ from constants import WidgetIDs
 logger = logging.getLogger(__name__)
 
 
-class CityInputDialog(ModalScreen):
+class CityInputDialog(ModalScreen[Optional[str]]):
     """Modal dialog for entering a city name for weather setup."""
     
     BINDINGS = [
@@ -98,7 +98,7 @@ CityInputDialog {
 """
 
 
-class WeatherForecastDialog(ModalScreen):
+class WeatherForecastDialog(ModalScreen[None]):
     """Modal dialog showing detailed weather forecast."""
     
     BINDINGS = [
@@ -109,14 +109,15 @@ class WeatherForecastDialog(ModalScreen):
     ]
     
     def __init__(self, city_name: str, current_temp: float, current_icon: str, 
-                 forecast: List[dict], on_change_city=None, on_refresh=None, **kwargs):
+                 forecast: list[dict[str, Any]], on_change_city: Optional[Callable[[], None]] = None, 
+                 on_refresh: Optional[Callable[[], None]] = None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.city_name = city_name
-        self.current_temp = current_temp
-        self.current_icon = current_icon
-        self.forecast = forecast
-        self.on_change_city = on_change_city
-        self.on_refresh = on_refresh
+        self.city_name: str = city_name
+        self.current_temp: float = current_temp
+        self.current_icon: str = current_icon
+        self.forecast: list[dict[str, Any]] = forecast
+        self.on_change_city: Optional[Callable[[], None]] = on_change_city
+        self.on_refresh: Optional[Callable[[], None]] = on_refresh
     
     def compose(self) -> ComposeResult:
         """Create the forecast dialog interface."""

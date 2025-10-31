@@ -2,15 +2,20 @@
 Base classes and mixins for common screen functionality
 """
 
-from typing import List, Optional
+from typing import Optional, TYPE_CHECKING
 from textual.screen import Screen
 from textual.widget import Widget
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 
 class NavigableMixin:
     """Mixin providing keyboard navigation for focusable items in a screen."""
     
-    def get_focusable_items(self) -> List[Widget]:
+    focused: Optional[Widget]
+    
+    def get_focusable_items(self) -> list[Widget]:
         """
         Override this method to define which widgets should be navigable.
         By default, returns all focusable widgets.
@@ -26,7 +31,7 @@ class NavigableMixin:
         if not focusable:
             return
         
-        focused = self.focused  # type: ignore
+        focused = self.focused
         if focused in focusable:
             current_index = focusable.index(focused)
             next_index = (current_index + 1) % len(focusable)
@@ -41,7 +46,7 @@ class NavigableMixin:
         if not focusable:
             return
         
-        focused = self.focused  # type: ignore
+        focused = self.focused
         if focused in focusable:
             current_index = focusable.index(focused)
             prev_index = (current_index - 1) % len(focusable)

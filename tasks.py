@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from textual.app import ComposeResult
 from textual.screen import Screen, ModalScreen
@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 class Task:
     """Represents a single task."""
     
-    def __init__(self, text: str, completed: bool = False, task_id: Optional[int] = None):
-        self.text = text
-        self.completed = completed
-        self.id = task_id if task_id is not None else id(self)
-        self.created_at = datetime.now()
+    def __init__(self, text: str, completed: bool = False, task_id: Optional[int] = None) -> None:
+        self.text: str = text
+        self.completed: bool = completed
+        self.id: int = task_id if task_id is not None else id(self)
+        self.created_at: datetime = datetime.now()
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert task to dictionary for storage."""
         return {
             "id": self.id,
@@ -41,7 +41,7 @@ class Task:
         }
     
     @classmethod
-    def from_dict(cls, data: Dict) -> 'Task':
+    def from_dict(cls, data: dict[str, Any]) -> 'Task':
         """Create task from dictionary."""
         task = cls(data["text"], data["completed"], data["id"])
         try:
@@ -54,12 +54,12 @@ class Task:
 class TaskStorage:
     """Manages task persistence."""
     
-    def __init__(self):
-        self.data_dir = Path.home() / ".config" / "terminallysimple"
-        self.tasks_file = self.data_dir / "tasks.json"
+    def __init__(self) -> None:
+        self.data_dir: Path = Path.home() / ".config" / "terminallysimple"
+        self.tasks_file: Path = self.data_dir / "tasks.json"
         self.data_dir.mkdir(parents=True, exist_ok=True)
     
-    def load_tasks(self) -> List[Task]:
+    def load_tasks(self) -> list[Task]:
         """Load tasks from file."""
         if not self.tasks_file.exists():
             return []
@@ -75,7 +75,7 @@ class TaskStorage:
             logger.error(f"Could not read tasks file: {e}")
             return []
     
-    def save_tasks(self, tasks: List[Task]) -> bool:
+    def save_tasks(self, tasks: list[Task]) -> bool:
         """Save tasks to file."""
         try:
             with open(self.tasks_file, 'w') as f:
@@ -86,13 +86,13 @@ class TaskStorage:
             return False
 
 
-class TaskInput(ModalScreen):
+class TaskInput(ModalScreen[Optional[str]]):
     """Modal screen for adding or editing a task."""
     
-    def __init__(self, initial_text: str = "", title: str = "ADD TASK", **kwargs):
+    def __init__(self, initial_text: str = "", title: str = "ADD TASK", **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.initial_text = initial_text
-        self.title_text = title
+        self.initial_text: str = initial_text
+        self.title_text: str = title
     
     def compose(self) -> ComposeResult:
         """Create the task input interface."""
@@ -157,12 +157,12 @@ TaskInput {
 """
 
 
-class ConfirmDeleteDialog(ModalScreen):
+class ConfirmDeleteDialog(ModalScreen[bool]):
     """Modal dialog for confirming task deletion."""
     
-    def __init__(self, task_text: str, **kwargs):
+    def __init__(self, task_text: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.task_text = task_text
+        self.task_text: str = task_text
     
     def compose(self) -> ComposeResult:
         """Create the confirmation dialog interface."""
@@ -216,9 +216,9 @@ ConfirmDeleteDialog {
 class TaskItem(Static, can_focus=True):
     """A single task item in the list."""
     
-    def __init__(self, task: Task, **kwargs):
+    def __init__(self, task: Task, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.task_data = task
+        self.task_data: Task = task
     
     def render(self) -> str:
         """Render the task item."""
@@ -257,11 +257,12 @@ class TaskManagerScreen(NavigableMixin, Screen):
         Binding("up,k", "cursor_up", "Previous", show=False),
     ]
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.storage = TaskStorage()
-        self.tasks: List[Task] = []
-        self.next_id = 1
+        self.storage: TaskStorage = TaskStorage()
+        self.tasks: list[Task] = []
+        self.next_id: int = 1
+        self.focused: Optional[Widget] = None
     
     def compose(self) -> ComposeResult:
         """Create the task manager interface."""
@@ -395,7 +396,7 @@ class TaskManagerScreen(NavigableMixin, Screen):
         """Return to the main menu."""
         self.app.pop_screen()
     
-    def get_focusable_items(self) -> List[Widget]:
+    def get_focusable_items(self) -> list[Widget]:
         """Return task items for navigation."""
         return list(self.query(TaskItem))
 

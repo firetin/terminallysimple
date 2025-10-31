@@ -6,7 +6,7 @@ One app. All your essential tools. Zero distractions.
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional, Any
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
@@ -46,11 +46,11 @@ class MenuItem(Static, can_focus=True):
     }
     """
     
-    def __init__(self, label: str, key: str, description: str = "", **kwargs):
+    def __init__(self, label: str, key: str, description: str = "", **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.label = label
-        self.key = key
-        self.description = description
+        self.label: str = label
+        self.key: str = key
+        self.description: str = description
     
     def render(self) -> str:
         """Render the menu item - always show focus state."""
@@ -79,6 +79,8 @@ class MainMenu(NavigableScreen):
         Binding("down,j", "cursor_down", "Next", show=False),
         Binding("up,k", "cursor_up", "Previous", show=False),
     ]
+    
+    focused: Optional[Widget]
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the menu."""
@@ -103,7 +105,7 @@ class MainMenu(NavigableScreen):
 
     def on_click(self, event: Click) -> None:
         """Handle clicks on menu items."""
-        if isinstance(event.widget, MenuItem):
+        if isinstance(event.widget, MenuItem) and event.widget.id:
             self._activate_item(event.widget.id)
 
     def _activate_item(self, item_id: str) -> None:
@@ -132,10 +134,10 @@ class MainMenu(NavigableScreen):
     def action_activate(self) -> None:
         """Activate focused item."""
         focused = self.focused
-        if isinstance(focused, MenuItem):
+        if isinstance(focused, MenuItem) and focused.id:
             self._activate_item(focused.id)
     
-    def get_focusable_items(self) -> List[Widget]:
+    def get_focusable_items(self) -> list[Widget]:
         """Return menu items for navigation."""
         return list(self.query(MenuItem))
 

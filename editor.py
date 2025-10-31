@@ -8,7 +8,7 @@ import platform
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional, Any
 
 from textual.app import ComposeResult
 from textual.events import Click
@@ -17,6 +17,7 @@ from textual.widgets import Footer, TextArea, Static, Button, Input, Label
 from textual.containers import Container, Vertical, Horizontal
 from textual.binding import Binding
 from textual.widget import Widget
+from textual.timer import Timer
 
 from base_screen import NavigableMixin
 from constants import (
@@ -29,12 +30,12 @@ from widgets.system_header import SystemHeader
 logger = logging.getLogger(__name__)
 
 
-class ConfirmDialog(ModalScreen):
+class ConfirmDialog(ModalScreen[bool]):
     """Modal dialog for confirming actions."""
     
-    def __init__(self, message: str, **kwargs):
+    def __init__(self, message: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.message = message
+        self.message: str = message
     
     def compose(self) -> ComposeResult:
         """Create the confirmation dialog interface."""
@@ -101,9 +102,9 @@ ConfirmDialog {
 class ClickablePath(Static, can_focus=True):
     """A clickable path that opens the folder."""
     
-    def __init__(self, path: Path, **kwargs):
+    def __init__(self, path: Path, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.path = path
+        self.path: Path = path
     
     def render(self) -> str:
         """Render the path."""
@@ -138,7 +139,7 @@ class ClickablePath(Static, can_focus=True):
         self.refresh()
 
 
-class FilenamePrompt(ModalScreen):
+class FilenamePrompt(ModalScreen[Optional[str]]):
     """Modal screen for entering a filename."""
     
     def compose(self) -> ComposeResult:
@@ -211,12 +212,12 @@ FilenamePrompt {
 """
 
 
-class RenamePrompt(ModalScreen):
+class RenamePrompt(ModalScreen[Optional[str]]):
     """Modal screen for renaming a file."""
     
-    def __init__(self, current_filename: str, **kwargs):
+    def __init__(self, current_filename: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.current_filename = current_filename
+        self.current_filename: str = current_filename
     
     def compose(self) -> ComposeResult:
         """Create the rename prompt interface."""
@@ -296,10 +297,10 @@ RenamePrompt {
 class FileItem(Static, can_focus=True):
     """A clickable file item in the browser."""
     
-    def __init__(self, filename: str, filepath: Path, **kwargs):
+    def __init__(self, filename: str, filepath: Path, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.filename = filename
-        self.filepath = filepath
+        self.filename: str = filename
+        self.filepath: Path = filepath
     
     def render(self) -> str:
         """Render the file item - always show focus state."""
@@ -316,7 +317,7 @@ class FileItem(Static, can_focus=True):
         self.refresh()
 
 
-class FileBrowser(NavigableMixin, ModalScreen):
+class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
     """Modal screen for browsing and selecting files."""
     
     BINDINGS = [
@@ -330,6 +331,7 @@ class FileBrowser(NavigableMixin, ModalScreen):
         super().__init__()
         self.documents_dir: Path = documents_dir
         self.selected_file: Optional[Path] = None
+        self.focused: Optional[Widget] = None
     
     def compose(self) -> ComposeResult:
         """Create the file browser interface."""
@@ -385,9 +387,9 @@ class FileBrowser(NavigableMixin, ModalScreen):
         """Cancel file selection."""
         self.dismiss(None)
     
-    def get_focusable_items(self) -> List[Widget]:
+    def get_focusable_items(self) -> list[Widget]:
         """Return focusable items for navigation (ClickablePath and FileItems)."""
-        focusable: List[Widget] = []
+        focusable: list[Widget] = []
         try:
             clickable_path = self.query_one(ClickablePath)
             focusable.append(clickable_path)
@@ -481,12 +483,12 @@ class EditorScreen(Screen):
         Binding("tab", "insert_tab", "Tab", show=False, priority=True),
     ]
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.current_file: Optional[Path] = None
         self.is_modified: bool = False  # Track if content has been modified
         self.original_content: str = ""  # Store original content for comparison
-        self.autosave_timer = None  # Timer for autosaving
+        self.autosave_timer: Optional[Timer] = None  # Timer for autosaving
         self.autosave_enabled: bool = True  # Enable/disable autosave
         self.autosave_interval: float = 30.0  # Autosave every 30 seconds
         # Save to app directory instead of Documents

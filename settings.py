@@ -3,7 +3,7 @@ Settings interface for customizing the app
 """
 
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 
 from textual.app import ComposeResult
 from textual.events import Click
@@ -23,12 +23,12 @@ logger = logging.getLogger(__name__)
 class SettingOption(Static):
     """A selectable setting option."""
     
-    def __init__(self, label: str, value: str, selected: bool = False, **kwargs):
+    def __init__(self, label: str, value: str, selected: bool = False, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.label = label
-        self.value = value
-        self.selected = selected
-        self.can_focus = True
+        self.label: str = label
+        self.value: str = value
+        self.selected: bool = selected
+        self.can_focus: bool = True
     
     def render(self) -> str:
         """Render the option."""
@@ -50,7 +50,7 @@ class SettingsScreen(NavigableScreen):
     """Settings screen for theme customization."""
     
     # Available Textual themes
-    THEMES: List[Tuple[str, str]] = [
+    THEMES: list[tuple[str, str]] = [
         ("Dark", "textual-dark"),
         ("Light", "textual-light"),
         ("Nord", "nord"),
@@ -176,7 +176,7 @@ class SettingsScreen(NavigableScreen):
         self.app.apply_theme_from_config()
         self.app.pop_screen()
     
-    def get_focusable_items(self) -> List[Widget]:
+    def get_focusable_items(self) -> list[Widget]:
         """Return setting options for navigation."""
         return list(self.query(SettingOption))
     

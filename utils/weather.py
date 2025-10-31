@@ -5,25 +5,25 @@ No API key required - completely free and open-source
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Any, Final
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
 # Open-Meteo API endpoints
-GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search"
-WEATHER_API = "https://api.open-meteo.com/v1/forecast"
+GEOCODING_API: Final[str] = "https://geocoding-api.open-meteo.com/v1/search"
+WEATHER_API: Final[str] = "https://api.open-meteo.com/v1/forecast"
 
 # Weather cache settings
-CACHE_DURATION_MINUTES = 30
+CACHE_DURATION_MINUTES: Final[int] = 30
 
 
 class WeatherCache:
     """Simple in-memory cache for weather data."""
     
-    def __init__(self):
-        self.data: Optional[Dict] = None
+    def __init__(self) -> None:
+        self.data: Optional[dict[str, Any]] = None
         self.timestamp: Optional[datetime] = None
     
     def is_valid(self) -> bool:
@@ -33,18 +33,18 @@ class WeatherCache:
         age = datetime.now() - self.timestamp
         return age < timedelta(minutes=CACHE_DURATION_MINUTES)
     
-    def set(self, data: Dict) -> None:
+    def set(self, data: dict[str, Any]) -> None:
         """Store data in cache."""
         self.data = data
         self.timestamp = datetime.now()
     
-    def get(self) -> Optional[Dict]:
+    def get(self) -> Optional[dict[str, Any]]:
         """Get cached data if valid."""
         return self.data if self.is_valid() else None
 
 
 # Global weather cache
-_weather_cache = WeatherCache()
+_weather_cache: WeatherCache = WeatherCache()
 
 
 def get_weather_icon(weather_code: int) -> str:
@@ -115,7 +115,7 @@ def get_weather_description(weather_code: int) -> str:
     return descriptions.get(weather_code, "Unknown")
 
 
-async def geocode_city(city_name: str) -> Optional[Tuple[str, float, float]]:
+async def geocode_city(city_name: str) -> Optional[tuple[str, float, float]]:
     """
     Convert city name to coordinates using Open-Meteo Geocoding API.
     
@@ -164,7 +164,7 @@ async def geocode_city(city_name: str) -> Optional[Tuple[str, float, float]]:
         return None
 
 
-async def fetch_weather(latitude: float, longitude: float, use_cache: bool = True) -> Optional[Dict]:
+async def fetch_weather(latitude: float, longitude: float, use_cache: bool = True) -> Optional[dict[str, Any]]:
     """
     Fetch current weather and hourly forecast from Open-Meteo API.
     
@@ -219,7 +219,7 @@ async def fetch_weather(latitude: float, longitude: float, use_cache: bool = Tru
         return None
 
 
-def parse_current_weather(data: Dict) -> Optional[Tuple[float, int, str]]:
+def parse_current_weather(data: dict[str, Any]) -> Optional[tuple[float, int, str]]:
     """
     Parse current weather from API response.
     
@@ -241,7 +241,7 @@ def parse_current_weather(data: Dict) -> Optional[Tuple[float, int, str]]:
         return None
 
 
-def parse_hourly_forecast(data: Dict, hours: int = 12) -> List[Dict]:
+def parse_hourly_forecast(data: dict[str, Any], hours: int = 12) -> list[dict[str, Any]]:
     """
     Parse hourly forecast from API response.
     

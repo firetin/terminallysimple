@@ -2,7 +2,17 @@
 Input validation utilities
 """
 
+from typing import Final
 from constants import MAX_FILENAME_LENGTH
+
+# Reserved Windows filenames
+RESERVED_NAMES: Final[set[str]] = {
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+}
+
+DANGEROUS_CHARS: Final[str] = '<>:"|?*\0'
 
 
 def sanitize_filename(filename: str) -> str:
@@ -32,8 +42,7 @@ def sanitize_filename(filename: str) -> str:
         raise ValueError("Filename cannot start with '.' or be a directory reference")
     
     # Remove dangerous characters and control characters
-    dangerous_chars = '<>:"|?*\0'
-    for char in dangerous_chars:
+    for char in DANGEROUS_CHARS:
         if char in filename:
             raise ValueError(f"Filename cannot contain '{char}' character")
     
@@ -42,13 +51,8 @@ def sanitize_filename(filename: str) -> str:
         raise ValueError("Filename contains invalid characters")
     
     # Check for Windows reserved names (case-insensitive)
-    reserved_names = {
-        'CON', 'PRN', 'AUX', 'NUL',
-        'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-        'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
-    }
     name_without_ext = filename.rsplit('.', 1)[0].upper()
-    if name_without_ext in reserved_names:
+    if name_without_ext in RESERVED_NAMES:
         raise ValueError(f"'{filename}' is a reserved system name")
     
     # Limit filename length (most filesystems support 255, but leave room for extension)

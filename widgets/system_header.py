@@ -4,7 +4,7 @@ Custom header with system resource monitoring and weather
 
 import logging
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Optional, Any, Callable
 
 import psutil
 from rich.text import Text
@@ -14,6 +14,7 @@ from textual.widgets import Static
 from textual.widget import Widget
 from textual.events import Resize, Click
 from textual.worker import Worker, WorkerState
+from textual.timer import Timer
 
 from config import config
 from utils.weather import (
@@ -26,9 +27,9 @@ logger = logging.getLogger(__name__)
 class WeatherWidget(Static, can_focus=False):
     """Clickable weather widget that shows current weather."""
     
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.weather_data: Optional[Dict] = None
+        self.weather_data: Optional[dict[str, Any]] = None
         self.city_name: str = ""
         self.temperature: Optional[float] = None
         self.weather_icon: str = "🌤️"
@@ -43,7 +44,7 @@ class WeatherWidget(Static, can_focus=False):
         else:
             return "[dim]N/A[/]"
     
-    def update_weather(self, city_name: str, temperature: float, icon: str, data: Dict) -> None:
+    def update_weather(self, city_name: str, temperature: float, icon: str, data: dict[str, Any]) -> None:
         """Update weather display."""
         self.city_name = city_name
         self.temperature = temperature
@@ -96,12 +97,12 @@ class SystemHeader(Widget):
     cpu_usage: reactive[float] = reactive(0.0)
     ram_usage: reactive[float] = reactive(0.0)
     
-    def __init__(self, show_clock: bool = True, show_weather: bool = True, **kwargs) -> None:
+    def __init__(self, show_clock: bool = True, show_weather: bool = True, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.show_clock = show_clock
-        self.show_weather = show_weather
-        self._update_timer: Optional[object] = None
-        self._weather_timer: Optional[object] = None
+        self.show_clock: bool = show_clock
+        self.show_weather: bool = show_weather
+        self._update_timer: Optional[Timer] = None
+        self._weather_timer: Optional[Timer] = None
         self.weather_widget: Optional[WeatherWidget] = None
     
     def compose(self) -> ComposeResult:
@@ -265,7 +266,7 @@ class SystemHeader(Widget):
                 # Start geocoding and weather fetch
                 self._setup_weather(city_name)
         
-        self.app.push_screen(CityInputDialog(), handle_city_input)
+        self.app.push_screen(CityInputDialog(), callback=handle_city_input)
     
     def _setup_weather(self, city_name: str) -> None:
         """Setup weather for a city (geocode and fetch)."""
@@ -377,10 +378,10 @@ class SystemHeader(Widget):
         from dialogs.weather_dialogs import WeatherForecastDialog
         
         # Parse hourly forecast - get all available hours
-        forecast = parse_hourly_forecast(self.weather_widget.weather_data, hours=24)
+        forecast: list[dict[str, Any]] = parse_hourly_forecast(self.weather_widget.weather_data, hours=24)
         
         # Filter to show every 4th entry for cleaner display
-        filtered_forecast = []
+        filtered_forecast: list[dict[str, Any]] = []
         if len(forecast) > 0:
             # Take every 4th hour starting from the first available
             for i in range(0, len(forecast), 4):
