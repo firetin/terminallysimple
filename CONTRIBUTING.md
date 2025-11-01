@@ -27,6 +27,17 @@ Open an issue with:
 
 ## Development Setup
 
+**Using uv (recommended):**
+```bash
+git clone https://github.com/yourusername/terminallysimple.git
+cd terminallysimple
+uv venv
+uv pip install -r requirements.txt
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python app.py
+```
+
+**Using pip:**
 ```bash
 git clone https://github.com/yourusername/terminallysimple.git
 cd terminallysimple

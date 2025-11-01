@@ -24,9 +24,28 @@ Showcase of the app: https://imgur.com/a/rhskc5u
 
 ## Installation
 
+### Using uv (recommended - faster)
+
+```bash
+# Install uv if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and run
+git clone https://github.com/firetin/terminallysimple.git
+cd terminallysimple
+uv venv
+uv pip install -r requirements.txt
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+python app.py
+```
+
+### Using pip
+
 ```bash
 git clone https://github.com/firetin/terminallysimple.git
 cd terminallysimple
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
@@ -57,13 +76,13 @@ python app.py
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-**Quick start:**
+**Quick start (with uv):**
 ```bash
 git clone https://github.com/firetin/terminallysimple.git
 cd terminallysimple
-python -m venv .venv
+uv venv
+uv pip install -r requirements.txt
 source .venv/bin/activate
-pip install -r requirements.txt
 python app.py
 ```
 
