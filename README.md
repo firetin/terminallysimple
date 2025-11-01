@@ -11,157 +11,70 @@
 
 > One terminal app. All your essential tools. Zero distractions.
 
-A minimalist terminal application that consolidates your everyday tools into a single, elegant interface. Work with focus—write, check, create—without the noise of multiple apps.
-
-**Built with [Textual](https://textual.textualize.io/) - Modern TUI framework for Python**
-
-## Philosophy
-
-Terminally Simple is built on the principle that productivity tools should be functional, lean, and distraction-free. Instead of juggling multiple applications, access everything you need from one clean terminal interface.
+A minimalist terminal application for distraction-free productivity. Built with [Textual](https://textual.textualize.io/).
 
 ## Features
 
-### Currently Available
-- **Text/Markdown Editor** — Distraction-free writing and journaling with file browser
-- **Task Manager** — Simple to-do list to track your tasks
-- **Settings Screen** — Choose from 11 beautiful themes with live preview
-- **Weather Widget** — Real-time weather and hourly forecast for any city worldwide
-- **Cross-platform** — Works on Linux, macOS, and Windows
-
-## Tech Stack
-
-- **Primary**: [Textual](https://textual.textualize.io/) (Python TUI framework)
-- **Language**: Python (open to other languages where they provide better efficiency)
-- **Design**: Minimalist, functional, clean
+- **Text/Markdown Editor** — Distraction-free writing with autosave
+- **Task Manager** — Simple to-do list
+- **Weather Widget** — Real-time weather for any city
+- **11 Beautiful Themes** — Dark, light, and custom color schemes
+- **Cross-platform** — Linux, macOS, Windows
 
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/firetin/terminallysimple.git
 cd terminallysimple
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the app
 python app.py
 ```
 
-## Usage
-
-Launch the app and navigate through available tools using the menu. Each tool runs as an independent sub-program within the terminal interface.
-
-```bash
-python app.py
-```
-
-## Showcase
-
-<img width="5511" height="2526" alt="ts-github" src="https://github.com/user-attachments/assets/5dc5880a-2145-42b5-a7ea-62a4b5bb7a72" />
+## Quick Start
 
 ### Text Editor
-- Files are saved in the `notes/` folder within the app directory
-- **Autosave:** Your work is automatically saved every 30 seconds
-- Press `Ctrl+O` to browse and open saved files
-- Press `Ctrl+S` to save your document
-- Press `Ctrl+N` to start a new document
-- Press `Ctrl+R` to rename the current file
-- Press `Ctrl+A` to select all text
-- Press `Ctrl+Z` to undo changes
-- Press `Ctrl+Y` to redo changes
-- Press `Escape` to return to the main menu
-- Maximum data loss: 30 seconds (thanks to autosave)
+- `Ctrl+S` - Save | `Ctrl+O` - Open | `Ctrl+N` - New | `Ctrl+D` - Delete (in file browser)
+- `Ctrl+R` - Rename | `Ctrl+A` - Select All | `Ctrl+Z/Y` - Undo/Redo
+- Files saved to `notes/` folder with autosave every 30 seconds
 
 ### Task Manager
-- Simple to-do list for tracking your tasks
-- Press `a` to add a new task
-- Press `d` to delete the focused task
-- Press `e` to edit the focused task
-- Press `Space` or `Enter` to toggle task completion
-- Press `c` to clear all completed tasks
-- Navigate with `j/k` or arrow keys
-- Tasks are automatically saved to `~/.config/terminallysimple/tasks.json`
-- Press `Escape` to return to the main menu
+- `a` - Add | `e` - Edit | `d` - Delete | `Space` - Toggle complete
+- `c` - Clear completed | `Ctrl+↑/↓` - Reorder tasks
+- Click task to toggle completion
+
+### Weather
+- Click "Weather" in header to set city
+- Click again for hourly forecast
+- Free API from [Open-Meteo](https://open-meteo.com/)
 
 ### Settings
-- Press `2` from the main menu or navigate to Settings
-- Choose from 11 beautiful themes with instant preview
-- Navigate with `j/k` or arrow keys
-- Press `Enter` to preview a theme
-- Press `s` to save your selection
-- Press `Escape` to cancel and restore original theme
-
-### Weather Widget
-- Click "Weather" in the top-right header to set up your city
-- Shows real-time temperature and weather icon (☀️ ☁️ 💧 ❄️ ⛈️)
-- Click again to view detailed hourly forecast
-- Powered by [Open-Meteo API](https://open-meteo.com/) - completely free, no API key needed
-- Updates automatically every 30 minutes
-- Works for any city worldwide
-
-### Available Themes
-- Dark & Light (default Textual themes)
-- Nord - Arctic-inspired palette
-- Gruvbox - Retro warm colors
-- Catppuccin (Mocha & Latte) - Soothing pastels
-- Dracula - Popular purple-based theme
-- Tokyo Night - Inspired by Tokyo at night
-- Monokai - Classic coding theme
-- Flexoki - Flexible, accessible colors
-- Solarized Light - Scientific precision
+- Choose from 11 themes with live preview
+- Settings auto-save
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### Development Philosophy
-- **Clarity over complexity** - Code should be readable
-- **Function over form** - Features should be practical
-- **Simplicity over feature bloat** - Keep it minimal
-- **Keyboard-driven** - Mouse optional
-
-### Quick Start for Contributors
+**Quick start:**
 ```bash
 git clone https://github.com/firetin/terminallysimple.git
 cd terminallysimple
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
 ## Support
 
-- 🐛 **Found a bug?** [Open an issue](https://github.com/firetin/terminallysimple/issues/new?template=bug_report.md)
-- 💡 **Have an idea?** [Request a feature](https://github.com/firetin/terminallysimple/issues/new?template=feature_request.md)
-- 💬 **Questions?** Open a [discussion](https://github.com/firetin/terminallysimple/discussions)
-
-## Roadmap
-
-Future ideas (contributions welcome!):
-- [ ] Task priorities and categories
-- [ ] Calendar integration
-- [ ] Export tasks to Markdown/CSV
-- [ ] Pomodoro timer
-- [ ] Plugin system
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
+- 🐛 [Report bugs](https://github.com/firetin/terminallysimple/issues)
+- 💡 [Request features](https://github.com/firetin/terminallysimple/issues)
+- 💬 [Discussions](https://github.com/firetin/terminallysimple/discussions)
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
-
-Copyright (c) 2025 Firetin
-
-## Acknowledgments
-
-- Built with [Textual](https://textual.textualize.io/) by Textualize.io
-- Weather data from [Open-Meteo](https://open-meteo.com/)
-- Inspired by the Unix philosophy: Do one thing and do it well
+MIT License - Copyright (c) 2025 Firetin
 
 ---
-
-**Built with focus. Designed for simplicity.**
 
 ⭐ Star this repo if you find it useful!

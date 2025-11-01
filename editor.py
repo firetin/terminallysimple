@@ -42,23 +42,35 @@ class ConfirmDialog(ModalScreen[bool]):
         with Container(id=WidgetIDs.CONFIRM_CONTAINER):
             yield Static("CONFIRM", id=WidgetIDs.CONFIRM_TITLE)
             yield Static(self.message, id=WidgetIDs.CONFIRM_MESSAGE)
-            with Horizontal(id=WidgetIDs.CONFIRM_BUTTONS):
-                yield Button("Yes", variant="error", id=WidgetIDs.CONFIRM_YES)
-                yield Button("No", variant="primary", id=WidgetIDs.CONFIRM_NO)
-    
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses."""
-        if event.button.id == WidgetIDs.CONFIRM_YES:
-            self.dismiss(True)
-        else:
-            self.dismiss(False)
+            yield Static("Press 'y' to confirm, 'n' or Escape to cancel", id=WidgetIDs.CONFIRM_HINT)
     
     def on_key(self, event) -> None:
-        """Handle escape and enter keys."""
-        if event.key == "escape":
+        """Handle keyboard shortcuts."""
+        if event.key == "y":
+            self.dismiss(True)
+        elif event.key in ("n", "escape"):
             self.dismiss(False)
-        elif event.key == "enter":
-            # Default to No on enter
+
+
+class ConfirmDeleteFileDialog(ModalScreen[bool]):
+    """Modal dialog for confirming file deletion."""
+    
+    def __init__(self, filename: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.filename: str = filename
+    
+    def compose(self) -> ComposeResult:
+        """Create the confirmation dialog interface."""
+        with Container(id="confirm-delete-file-container"):
+            yield Static("DELETE FILE", id="confirm-delete-file-title")
+            yield Static(f"Delete '{self.filename}'?", id="confirm-delete-file-message")
+            yield Static("Press 'y' to delete, 'n' or Escape to cancel", id="confirm-delete-file-hint")
+    
+    def on_key(self, event) -> None:
+        """Handle keyboard shortcuts."""
+        if event.key == "y":
+            self.dismiss(True)
+        elif event.key in ("n", "escape"):
             self.dismiss(False)
 
 
@@ -88,13 +100,44 @@ ConfirmDialog {
     margin-bottom: 2;
 }
 
-#confirm-buttons {
-    height: auto;
+#confirm-hint {
+    text-align: center;
+    color: $text-muted;
+    margin-top: 1;
+}
+"""
+
+
+ConfirmDeleteFileDialog.CSS = """
+ConfirmDeleteFileDialog {
     align: center middle;
 }
 
-#confirm-buttons Button {
-    margin: 0 1;
+#confirm-delete-file-container {
+    border: double $error;
+    width: 60;
+    height: auto;
+    background: $surface;
+    padding: 2;
+}
+
+#confirm-delete-file-title {
+    text-align: center;
+    text-style: bold;
+    color: $error;
+    margin-bottom: 1;
+}
+
+#confirm-delete-file-message {
+    text-align: center;
+    color: $text;
+    margin-bottom: 2;
+}
+
+#confirm-delete-file-hint {
+    text-align: center;
+    color: $text-muted;
+    margin-top: 1;
 }
 """
 
@@ -323,6 +366,7 @@ class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel", priority=True),
         Binding("enter", "select", "Open", show=False),
+        Binding("ctrl+d", "delete_file", "Delete", show=True),
         Binding("down,j", "cursor_down", "Next", show=False),
         Binding("up,k", "cursor_up", "Previous", show=False),
     ]
@@ -386,6 +430,56 @@ class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
     def action_dismiss(self) -> None:
         """Cancel file selection."""
         self.dismiss(None)
+    
+    def action_delete_file(self) -> None:
+        """Delete the focused file with confirmation."""
+        focused = self.focused
+        if not isinstance(focused, FileItem):
+            return
+        
+        file_to_delete = focused.filepath
+        
+        def handle_confirm(confirmed: Optional[bool]) -> None:
+            if confirmed:
+                try:
+                    file_to_delete.unlink()
+                    logger.info(f"Deleted file: {file_to_delete.name}")
+                    # Refresh the file list
+                    self._refresh_file_list()
+                except (OSError, IOError) as e:
+                    logger.error(f"Failed to delete file: {e}")
+        
+        self.app.push_screen(
+            ConfirmDeleteFileDialog(file_to_delete.stem),
+            handle_confirm
+        )
+    
+    def _refresh_file_list(self) -> None:
+        """Refresh the file list after deletion."""
+        # Clear existing file items
+        file_list = self.query_one(f"#{WidgetIDs.FILE_LIST}", Vertical)
+        file_list.remove_children()
+        
+        # Reload files
+        files = sorted(self.documents_dir.glob("*.md"), key=os.path.getmtime, reverse=True)
+        
+        if files:
+            for file in files:
+                file_list.mount(FileItem(
+                    f"{file.stem}  [dim]{self._format_time(os.path.getmtime(file))}[/]",
+                    file
+                ))
+            # Focus first item
+            def set_focus() -> None:
+                try:
+                    first_item = self.query_one(FileItem)
+                    self.set_focus(first_item)
+                except Exception:
+                    pass
+            self.set_timer(FOCUS_TIMER_DELAY, set_focus)
+        else:
+            # Show no files message
+            file_list.mount(Static("No files found. Save a file first!", id=WidgetIDs.NO_FILES))
     
     def get_focusable_items(self) -> list[Widget]:
         """Return focusable items for navigation (ClickablePath and FileItems)."""
@@ -712,7 +806,7 @@ class EditorScreen(Screen):
     
     def action_new(self) -> None:
         """Create a new document."""
-        def confirm_new(confirmed: bool) -> None:
+        def confirm_new(confirmed: Optional[bool]) -> None:
             if confirmed:
                 text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
                 text_area.clear()
@@ -797,7 +891,7 @@ class EditorScreen(Screen):
     
     def action_back(self) -> None:
         """Return to the main menu."""
-        def confirm_back(confirmed: bool) -> None:
+        def confirm_back(confirmed: Optional[bool]) -> None:
             if confirmed:
                 self.app.pop_screen()
         

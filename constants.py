@@ -65,6 +65,7 @@ class WidgetIDs:
     CONFIRM_CONTAINER = "confirm-container"
     CONFIRM_TITLE = "confirm-title"
     CONFIRM_MESSAGE = "confirm-message"
+    CONFIRM_HINT = "confirm-hint"
     CONFIRM_BUTTONS = "confirm-buttons"
     CONFIRM_YES = "confirm-yes"
     CONFIRM_NO = "confirm-no"

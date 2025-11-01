@@ -240,6 +240,13 @@ class TaskItem(Static, can_focus=True):
     def on_blur(self) -> None:
         """Refresh when focus lost."""
         self.refresh()
+    
+    def on_click(self) -> None:
+        """Toggle task completion on click."""
+        # Get the parent screen and call its toggle method
+        screen = self.screen
+        if isinstance(screen, TaskManagerScreen):
+            screen.toggle_task_by_id(self.task_data.id)
 
 
 class TaskManagerScreen(NavigableMixin, Screen):
@@ -255,6 +262,8 @@ class TaskManagerScreen(NavigableMixin, Screen):
         Binding("enter", "toggle_task", "Toggle", show=False),
         Binding("down,j", "cursor_down", "Next", show=False),
         Binding("up,k", "cursor_up", "Previous", show=False),
+        Binding("shift+up", "move_task_up", "Move Up", show=True, priority=True),
+        Binding("shift+down", "move_task_down", "Move Down", show=True, priority=True),
     ]
     
     def __init__(self) -> None:
@@ -395,6 +404,64 @@ class TaskManagerScreen(NavigableMixin, Screen):
     def action_back(self) -> None:
         """Return to the main menu."""
         self.app.pop_screen()
+    
+    def action_move_task_up(self) -> None:
+        """Move the focused task up in the list."""
+        focused = self.focused
+        if not isinstance(focused, TaskItem):
+            return
+        
+        task = focused.task_data
+        task_index = next((i for i, t in enumerate(self.tasks) if t.id == task.id), None)
+        
+        if task_index is not None and task_index > 0:
+            # Swap with previous task
+            self.tasks[task_index], self.tasks[task_index - 1] = self.tasks[task_index - 1], self.tasks[task_index]
+            self._save_tasks()
+            self._refresh_task_list()
+            
+            # Refocus the task that was moved
+            def refocus_task() -> None:
+                for item in self.query(TaskItem):
+                    if item.task_data.id == task.id:
+                        self.set_focus(item)
+                        break
+            self.set_timer(FOCUS_TIMER_DELAY, refocus_task)
+    
+    def action_move_task_down(self) -> None:
+        """Move the focused task down in the list."""
+        focused = self.focused
+        if not isinstance(focused, TaskItem):
+            return
+        
+        task = focused.task_data
+        task_index = next((i for i, t in enumerate(self.tasks) if t.id == task.id), None)
+        
+        if task_index is not None and task_index < len(self.tasks) - 1:
+            # Swap with next task
+            self.tasks[task_index], self.tasks[task_index + 1] = self.tasks[task_index + 1], self.tasks[task_index]
+            self._save_tasks()
+            self._refresh_task_list()
+            
+            # Refocus the task that was moved
+            def refocus_task() -> None:
+                for item in self.query(TaskItem):
+                    if item.task_data.id == task.id:
+                        self.set_focus(item)
+                        break
+            self.set_timer(FOCUS_TIMER_DELAY, refocus_task)
+    
+    def toggle_task_by_id(self, task_id: int) -> None:
+        """Toggle task completion by task ID (called from TaskItem click)."""
+        task = next((t for t in self.tasks if t.id == task_id), None)
+        if task:
+            task.completed = not task.completed
+            self._save_tasks()
+            # Refresh the specific task item
+            for item in self.query(TaskItem):
+                if item.task_data.id == task_id:
+                    item.refresh()
+                    break
     
     def get_focusable_items(self) -> list[Widget]:
         """Return task items for navigation."""
