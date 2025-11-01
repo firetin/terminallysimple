@@ -158,18 +158,23 @@ class ClickablePath(Static, can_focus=True):
     def on_click(self) -> None:
         """Open the folder when clicked in the system's file manager."""
         try:
+            # Validate path exists and is a directory
+            if not self.path.exists() or not self.path.is_dir():
+                logger.warning(f"Path does not exist or is not a directory: {self.path}")
+                return
+            
             system = platform.system()
-            path_str = str(self.path)
+            path_str = str(self.path.resolve())  # Use resolved absolute path
             
             if system == 'Darwin':  # macOS
-                subprocess.Popen(['open', path_str])
+                subprocess.run(['open', path_str], check=False)
             elif system == 'Windows':
-                subprocess.Popen(['explorer', path_str])
+                subprocess.run(['explorer', path_str], check=False)
             else:  # Linux and other Unix-like systems
-                subprocess.Popen(['xdg-open', path_str])
+                subprocess.run(['xdg-open', path_str], check=False)
         except FileNotFoundError:
             # File manager command not available
-            pass
+            logger.debug("File manager command not available")
         except (OSError, subprocess.SubprocessError) as e:
             logger.warning(f"Could not open folder: {e}")
     
@@ -192,7 +197,7 @@ class FilenamePrompt(ModalScreen[Optional[str]]):
         
         with Container(id=WidgetIDs.PROMPT_CONTAINER):
             yield Static("SAVE FILE", id=WidgetIDs.PROMPT_TITLE)
-            yield Label("Enter filename (without .md):", id=WidgetIDs.PROMPT_LABEL)
+            yield Label("Enter filename:", id=WidgetIDs.PROMPT_LABEL)
             yield Input(placeholder="my-note", id=WidgetIDs.FILENAME_INPUT)
             yield Static("Press Enter to save, Escape to cancel", id=WidgetIDs.PROMPT_HINT)
             yield Static("Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.PROMPT_RULES)
@@ -267,12 +272,12 @@ class RenamePrompt(ModalScreen[Optional[str]]):
         from textual.widgets import Input, Label
         from textual.containers import Vertical
         
-        # Remove .md extension for display
-        display_name = self.current_filename.replace('.md', '') if self.current_filename.endswith('.md') else self.current_filename
+        # Remove extension for display
+        display_name = self.current_filename.rsplit('.', 1)[0] if '.' in self.current_filename else self.current_filename
         
         with Container(id=WidgetIDs.RENAME_CONTAINER):
             yield Static("RENAME FILE", id=WidgetIDs.RENAME_TITLE)
-            yield Label("Enter new filename (without .md):", id=WidgetIDs.RENAME_LABEL)
+            yield Label("Enter new filename (without extension):", id=WidgetIDs.RENAME_LABEL)
             yield Input(value=display_name, placeholder="my-note", id=WidgetIDs.RENAME_INPUT)
             yield Static("Press Enter to rename, Escape to cancel", id=WidgetIDs.RENAME_HINT)
             yield Static("Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.RENAME_RULES)
@@ -380,7 +385,11 @@ class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
     def compose(self) -> ComposeResult:
         """Create the file browser interface."""
         from textual.widgets import Footer
-        files = sorted(self.documents_dir.glob("*.md"), key=os.path.getmtime, reverse=True)
+        # Support multiple text file extensions
+        all_files = []
+        for ext in ['*.md', '*.txt', '*.text']:
+            all_files.extend(self.documents_dir.glob(ext))
+        files = sorted(all_files, key=os.path.getmtime, reverse=True)
         
         yield Container(
             Static("OPEN FILE", id=WidgetIDs.BROWSER_TITLE),
@@ -460,8 +469,11 @@ class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
         file_list = self.query_one(f"#{WidgetIDs.FILE_LIST}", Vertical)
         file_list.remove_children()
         
-        # Reload files
-        files = sorted(self.documents_dir.glob("*.md"), key=os.path.getmtime, reverse=True)
+        # Reload files - support multiple text file extensions
+        all_files = []
+        for ext in ['*.md', '*.txt', '*.text']:
+            all_files.extend(self.documents_dir.glob(ext))
+        files = sorted(all_files, key=os.path.getmtime, reverse=True)
         
         if files:
             for file in files:
@@ -584,7 +596,8 @@ class EditorScreen(Screen):
         self.original_content: str = ""  # Store original content for comparison
         self.autosave_timer: Optional[Timer] = None  # Timer for autosaving
         self.autosave_enabled: bool = True  # Enable/disable autosave
-        self.autosave_interval: float = 30.0  # Autosave every 30 seconds
+        from constants import AUTOSAVE_INTERVAL
+        self.autosave_interval: float = AUTOSAVE_INTERVAL
         # Save to app directory instead of Documents
         self.documents_dir: Path = Path(__file__).parent / "notes"
         self.documents_dir.mkdir(parents=True, exist_ok=True)
@@ -656,7 +669,7 @@ class EditorScreen(Screen):
         """Autosave the current document if there are changes."""
         try:
             text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        except Exception as e:
+        except (LookupError, ValueError) as e:
             # Text area not accessible (e.g., modal is open), skip autosave
             logger.debug(f"Autosave skipped: text area not accessible")
             return
@@ -724,9 +737,9 @@ class EditorScreen(Screen):
                     # Sanitize the filename first
                     safe_filename = sanitize_filename(filename)
                     
-                    # Ensure .md extension
-                    if not safe_filename.endswith('.md'):
-                        safe_filename = f"{safe_filename}.md"
+                    # Strip any existing extension and add .md
+                    name_without_ext = safe_filename.rsplit('.', 1)[0] if '.' in safe_filename else safe_filename
+                    safe_filename = f"{name_without_ext}.md"
                     
                     # Verify the final path is within the documents directory
                     self.current_file = self.documents_dir / safe_filename
@@ -780,13 +793,19 @@ class EditorScreen(Screen):
             if selected_file:
                 try:
                     # Verify the selected file is within the documents directory
+                    resolved_file = selected_file.resolve()
                     try:
-                        selected_file.resolve().relative_to(self.documents_dir.resolve())
+                        resolved_file.relative_to(self.documents_dir.resolve())
                     except ValueError:
                         self._update_status("Error: Invalid file path")
                         return
                     
-                    self.current_file = selected_file
+                    # Check file still exists before reading
+                    if not resolved_file.exists():
+                        self._update_status("Error: File no longer exists")
+                        return
+                    
+                    self.current_file = resolved_file
                     content = self.current_file.read_text()
                     text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
                     text_area.load_text(content)
@@ -837,9 +856,12 @@ class EditorScreen(Screen):
                     # Sanitize the new filename
                     safe_filename = sanitize_filename(new_filename)
                     
-                    # Ensure .md extension
-                    if not safe_filename.endswith('.md'):
-                        safe_filename = f"{safe_filename}.md"
+                    # Get the original extension
+                    original_ext = self.current_file.suffix if self.current_file else '.md'
+                    
+                    # Strip any extension from the input and add the original extension
+                    name_without_ext = safe_filename.rsplit('.', 1)[0] if '.' in safe_filename else safe_filename
+                    safe_filename = f"{name_without_ext}{original_ext}"
                     
                     # Create the new file path
                     new_file_path = self.documents_dir / safe_filename

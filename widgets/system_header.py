@@ -280,6 +280,8 @@ class SystemHeader(Widget):
             result = await geocode_city(city_name)
             if not result:
                 logger.error(f"Could not find city: {city_name}")
+                # Show error notification to user
+                self.app.notify(f"City not found: {city_name}", severity="error", timeout=5)
                 return
             
             full_name, latitude, longitude = result
@@ -298,6 +300,8 @@ class SystemHeader(Widget):
             
         except Exception as e:
             logger.error(f"Error setting up weather: {e}")
+            # Show error notification to user
+            self.app.notify(f"Weather error: {str(e)}", severity="error", timeout=5)
     
     def _load_weather_from_config(self) -> None:
         """Load weather configuration and fetch current weather."""

@@ -35,6 +35,7 @@ python app.py
 ### Text Editor
 - `Ctrl+S` - Save | `Ctrl+O` - Open | `Ctrl+N` - New | `Ctrl+D` - Delete (in file browser)
 - `Ctrl+R` - Rename | `Ctrl+A` - Select All | `Ctrl+Z/Y` - Undo/Redo
+- Supports .md, .txt, and .text files
 - Files saved to `notes/` folder with autosave every 30 seconds
 
 ### Task Manager
