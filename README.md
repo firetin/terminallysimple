@@ -40,7 +40,7 @@ python app.py
 
 ### Task Manager
 - `a` - Add | `e` - Edit | `d` - Delete | `Space` - Toggle complete
-- `c` - Clear completed | `Ctrl+↑/↓` - Reorder tasks
+- `c` - Clear completed | `Shift+↑/↓` - Reorder tasks
 - Click task to toggle completion
 
 ### Weather
