@@ -9,7 +9,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)
 
-> One terminal app. All your essential tools. Zero distractions.
+> One terminal app. Essential tools. Zero distractions.
 
 A minimalist terminal application for distraction-free productivity. Built with [Textual](https://textual.textualize.io/).
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Terminally Simple - A minimalist terminal application
-One app. All your essential tools. Zero distractions.
+One app. Essential tools. Zero distractions.
 """
 
 import logging
@@ -87,7 +87,7 @@ class MainMenu(NavigableScreen):
         yield SystemHeader(show_clock=True)
         yield Container(
             Static("TERMINALLY SIMPLE", id=WidgetIDs.TITLE),
-            Static("One app. All your tools. Zero distractions.", id=WidgetIDs.SUBTITLE),
+            Static("One app. Essential tools. Zero distractions.", id=WidgetIDs.SUBTITLE),
             MenuItem("Text Editor", "1", "Distraction-free writing", id=WidgetIDs.ITEM_EDITOR),
             MenuItem("Task Manager", "2", "Simple to-do list", id=WidgetIDs.ITEM_TASKS),
             MenuItem("Settings", "3", "Customize theme and appearance", id=WidgetIDs.ITEM_SETTINGS),
