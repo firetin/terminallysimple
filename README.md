@@ -12,6 +12,7 @@
 > One terminal app. Essential tools. Zero distractions.
 
 A minimalist terminal application for distraction-free productivity. Built with [Textual](https://textual.textualize.io/).
+Showcase of the app: https://imgur.com/a/rhskc5u
 
 ## Features
 
