@@ -92,6 +92,11 @@ python app.py
 - 💡 [Request features](https://github.com/firetin/terminallysimple/issues)
 - 💬 [Discussions](https://github.com/firetin/terminallysimple/discussions)
 
+## Requested features
+
+1. Be able to launch weather forecast feature via keyboard - add this option to the settings (note - make the app keyboard first and mouse optional)
+2. Pomodoro timer implemented in the top bar like the weather
+
 ## License
 
 MIT License - Copyright (c) 2025 Firetin
