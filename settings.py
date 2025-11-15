@@ -82,6 +82,7 @@ class SettingsScreen(NavigableScreen):
         yield Container(
             Static("SETTINGS", id=WidgetIDs.SETTINGS_TITLE),
             Static("Select your theme", id=WidgetIDs.SETTINGS_SUBTITLE),
+            Static("[dim]Tip: Press 'w' anywhere to open weather forecast[/]", id=WidgetIDs.SETTINGS_TIP),
             
             Vertical(
                 *(SettingOption(
@@ -206,6 +207,12 @@ SettingsScreen.CSS = """
 }
 
 #settings-subtitle {
+    text-align: center;
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+#settings-tip {
     text-align: center;
     color: $text-muted;
     margin-bottom: 2;

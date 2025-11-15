@@ -64,8 +64,9 @@ python app.py
 - Click task to toggle completion
 
 ### Weather
-- Click "Weather" in header to set city
-- Click again for hourly forecast
+- Press `w` anywhere to open weather forecast
+- Click "Weather" in header to set city or view forecast
+- `c` - Change city | `r` - Refresh forecast
 - Free API from [Open-Meteo](https://open-meteo.com/)
 
 ### Settings
@@ -94,7 +95,7 @@ python app.py
 
 ## Requested features
 
-1. Be able to launch weather forecast feature via keyboard - add this option to the settings (note - make the app keyboard first and mouse optional)
+1. ✅ ~~Be able to launch weather forecast feature via keyboard - add this option to the settings (note - make the app keyboard first and mouse optional)~~ - Press `w` anywhere!
 2. Pomodoro timer implemented in the top bar like the weather
 
 ## License

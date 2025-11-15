@@ -74,6 +74,7 @@ class WidgetIDs:
     SETTINGS_CONTAINER = "settings-container"
     SETTINGS_TITLE = "settings-title"
     SETTINGS_SUBTITLE = "settings-subtitle"
+    SETTINGS_TIP = "settings-tip"
     THEME_LIST = "theme-list"
     SETTINGS_STATUS = "settings-status"
     

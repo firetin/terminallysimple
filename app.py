@@ -74,6 +74,7 @@ class MainMenu(NavigableScreen):
         Binding("1", "select_editor", "Editor", show=False),
         Binding("2", "select_tasks", "Tasks", show=False),
         Binding("3", "select_settings", "Settings", show=False),
+        Binding("w", "app.show_weather", "Weather", show=True),
         Binding("q", "app.quit", "Quit"),
         Binding("enter", "activate", "Select", show=True),
         Binding("down,j", "cursor_down", "Next", show=False),
@@ -148,6 +149,10 @@ class TerminallySimple(App):
     # Disable the command palette
     ENABLE_COMMAND_PALETTE = False
     
+    BINDINGS = [
+        Binding("w", "show_weather", "Weather", show=False, priority=False),
+    ]
+    
     CSS = f"""
     Screen {{
         border: double $primary;
@@ -202,6 +207,170 @@ class TerminallySimple(App):
         # Save the theme preference when it changes
         config.set("theme", theme)
         config.save()
+    
+    def action_show_weather(self) -> None:
+        """Show weather forecast or setup dialog via keyboard shortcut."""
+        from widgets.system_header import SystemHeader
+        from dialogs.weather_dialogs import CityInputDialog, WeatherForecastDialog
+        from utils.weather import parse_hourly_forecast
+        
+        # Try to find the SystemHeader in the current screen
+        try:
+            system_header = self.screen.query_one(SystemHeader)
+            if system_header and system_header.show_weather:
+                # Trigger weather click programmatically
+                system_header._handle_weather_click()
+            else:
+                # No weather widget available, show setup
+                self._show_weather_setup()
+        except Exception:
+            # SystemHeader not found, show setup
+            self._show_weather_setup()
+    
+    def _show_weather_setup(self) -> None:
+        """Show weather city input dialog."""
+        from dialogs.weather_dialogs import CityInputDialog
+        from utils.weather import geocode_city, fetch_weather, parse_current_weather
+        
+        def handle_city_input(city_name: Optional[str]) -> None:
+            if city_name:
+                # Start geocoding and weather fetch
+                self.run_worker(self._setup_weather_async(city_name), exclusive=True)
+        
+        self.push_screen(CityInputDialog(), callback=handle_city_input)
+    
+    async def _setup_weather_async(self, city_name: str) -> None:
+        """Async worker to setup weather."""
+        from utils.weather import geocode_city, fetch_weather, parse_current_weather, parse_hourly_forecast
+        from dialogs.weather_dialogs import WeatherForecastDialog
+        
+        try:
+            # Geocode the city
+            result = await geocode_city(city_name)
+            if not result:
+                logger.error(f"Could not find city: {city_name}")
+                self.notify(f"City not found: {city_name}", severity="error", timeout=5)
+                return
+            
+            full_name, latitude, longitude = result
+            
+            # Save to config
+            config.set("weather_city", full_name)
+            config.set("weather_latitude", latitude)
+            config.set("weather_longitude", longitude)
+            config.save()
+            
+            # Fetch weather (force refresh, no cache)
+            data = await fetch_weather(latitude, longitude, use_cache=False)
+            if not data:
+                logger.error("Failed to fetch weather data")
+                self.notify("Failed to fetch weather data", severity="error", timeout=5)
+                return
+            
+            # Parse current weather
+            current = parse_current_weather(data)
+            if not current:
+                logger.error("Failed to parse weather data")
+                self.notify("Failed to parse weather data", severity="error", timeout=5)
+                return
+            
+            temperature, weather_code, icon = current
+            
+            # Parse hourly forecast
+            forecast = parse_hourly_forecast(data, hours=24)
+            filtered_forecast = []
+            if len(forecast) > 0:
+                for i in range(0, len(forecast), 4):
+                    if i < len(forecast):
+                        filtered_forecast.append(forecast[i])
+            else:
+                filtered_forecast = forecast
+            
+            # Show forecast dialog
+            def handle_change_city() -> None:
+                self._show_weather_setup()
+            
+            def handle_refresh() -> None:
+                self.run_worker(self._refresh_and_show_weather(), exclusive=True)
+            
+            self.call_after_refresh(
+                lambda: self.push_screen(
+                    WeatherForecastDialog(
+                        city_name=full_name,
+                        current_temp=temperature,
+                        current_icon=icon,
+                        forecast=filtered_forecast,
+                        on_change_city=handle_change_city,
+                        on_refresh=handle_refresh
+                    )
+                )
+            )
+            
+        except Exception as e:
+            logger.error(f"Error setting up weather: {e}")
+            self.notify(f"Weather error: {str(e)}", severity="error", timeout=5)
+    
+    async def _refresh_and_show_weather(self) -> None:
+        """Refresh weather data and show forecast."""
+        from utils.weather import fetch_weather, parse_current_weather, parse_hourly_forecast
+        from dialogs.weather_dialogs import WeatherForecastDialog
+        
+        city = config.get("weather_city")
+        latitude = config.get("weather_latitude")
+        longitude = config.get("weather_longitude")
+        
+        if not city or latitude is None or longitude is None:
+            self.notify("Weather not configured", severity="warning", timeout=3)
+            return
+        
+        try:
+            # Fetch weather (no cache)
+            data = await fetch_weather(latitude, longitude, use_cache=False)
+            if not data:
+                self.notify("Failed to fetch weather data", severity="error", timeout=5)
+                return
+            
+            # Parse current weather
+            current = parse_current_weather(data)
+            if not current:
+                self.notify("Failed to parse weather data", severity="error", timeout=5)
+                return
+            
+            temperature, weather_code, icon = current
+            
+            # Parse hourly forecast
+            forecast = parse_hourly_forecast(data, hours=24)
+            filtered_forecast = []
+            if len(forecast) > 0:
+                for i in range(0, len(forecast), 4):
+                    if i < len(forecast):
+                        filtered_forecast.append(forecast[i])
+            else:
+                filtered_forecast = forecast
+            
+            # Show forecast dialog
+            def handle_change_city() -> None:
+                self._show_weather_setup()
+            
+            def handle_refresh() -> None:
+                self.run_worker(self._refresh_and_show_weather(), exclusive=True)
+            
+            self.call_after_refresh(
+                lambda: self.push_screen(
+                    WeatherForecastDialog(
+                        city_name=city,
+                        current_temp=temperature,
+                        current_icon=icon,
+                        forecast=filtered_forecast,
+                        on_change_city=handle_change_city,
+                        on_refresh=handle_refresh
+                    )
+                )
+            )
+            
+        except Exception as e:
+            logger.error(f"Error refreshing weather: {e}")
+            self.notify(f"Weather error: {str(e)}", severity="error", timeout=5)
 
 
 def main() -> None:
