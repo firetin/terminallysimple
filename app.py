@@ -75,6 +75,7 @@ class MainMenu(NavigableScreen):
         Binding("2", "select_tasks", "Tasks", show=False),
         Binding("3", "select_settings", "Settings", show=False),
         Binding("w", "app.show_weather", "Weather", show=True),
+        Binding("p", "app.show_pomodoro", "Pomodoro", show=True),
         Binding("q", "app.quit", "Quit"),
         Binding("enter", "activate", "Select", show=True),
         Binding("down,j", "cursor_down", "Next", show=False),
@@ -151,6 +152,7 @@ class TerminallySimple(App):
     
     BINDINGS = [
         Binding("w", "show_weather", "Weather", show=False, priority=False),
+        Binding("p", "show_pomodoro", "Pomodoro", show=False, priority=False),
     ]
     
     CSS = f"""
@@ -226,6 +228,20 @@ class TerminallySimple(App):
         except Exception:
             # SystemHeader not found, show setup
             self._show_weather_setup()
+    
+    def action_show_pomodoro(self) -> None:
+        """Show Pomodoro timer dialog via keyboard shortcut."""
+        from widgets.system_header import SystemHeader
+        
+        # Try to find the SystemHeader in the current screen
+        try:
+            system_header = self.screen.query_one(SystemHeader)
+            if system_header and system_header.show_pomodoro:
+                # Trigger Pomodoro dialog
+                system_header._show_pomodoro_dialog()
+        except Exception:
+            # SystemHeader not found
+            pass
     
     def _show_weather_setup(self) -> None:
         """Show weather city input dialog."""

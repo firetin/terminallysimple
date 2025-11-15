@@ -92,3 +92,11 @@ class WidgetIDs:
     WEATHER_FORECAST_BUTTONS = "weather-forecast-buttons"
     WEATHER_CHANGE_CITY_BTN = "weather-change-city-btn"
     WEATHER_FORECAST_HINT = "weather-forecast-hint"
+    
+    # Pomodoro
+    POMODORO_CONTAINER = "pomodoro-container"
+    POMODORO_TITLE = "pomodoro-title"
+    POMODORO_TIME = "pomodoro-time"
+    POMODORO_STATUS = "pomodoro-status"
+    POMODORO_INFO = "pomodoro-info"
+    POMODORO_HINT = "pomodoro-hint"

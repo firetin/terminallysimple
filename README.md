@@ -19,6 +19,7 @@ Showcase of the app: https://imgur.com/a/rhskc5u
 - **Text/Markdown Editor** — Distraction-free writing with autosave
 - **Task Manager** — Simple to-do list
 - **Weather Widget** — Real-time weather for any city
+- **Pomodoro Timer** — Focus sessions with automatic breaks
 - **11 Beautiful Themes** — Dark, light, and custom color schemes
 - **Cross-platform** — Linux, macOS, Windows
 
@@ -69,6 +70,12 @@ python app.py
 - `c` - Change city | `r` - Refresh forecast
 - Free API from [Open-Meteo](https://open-meteo.com/)
 
+### Pomodoro Timer
+- Press `p` anywhere to open Pomodoro timer
+- `s` - Start/Resume | `p` - Pause | `r` - Reset
+- Default: 25 min work, 5 min break, 15 min long break (every 4 cycles)
+- Notifications when sessions complete
+
 ### Settings
 - Choose from 11 themes with live preview
 - Settings auto-save
@@ -96,7 +103,7 @@ python app.py
 ## Requested features
 
 1. ✅ ~~Be able to launch weather forecast feature via keyboard - add this option to the settings (note - make the app keyboard first and mouse optional)~~ - Press `w` anywhere!
-2. Pomodoro timer implemented in the top bar like the weather
+2. ✅ ~~Pomodoro timer implemented in the top bar like the weather~~ - Press `p` anywhere!
 
 ## License
 
