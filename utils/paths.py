@@ -77,7 +77,7 @@ def legacy_notes_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "notes"
 
 
-def migrate_legacy_notes(target: Optional[Path] = None) -> int:
+def migrate_legacy_notes(target: Path | None = None) -> int:
     """
     Copy notes from the old in-repo ``notes/`` folder into ``target``.
 

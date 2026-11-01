@@ -135,9 +135,10 @@ which is exactly requested feature #1 in the README.
 
 ```python
 # utils/weather.py
-forecast_time = datetime.fromisoformat(time_str)   # city-local, naive
-current_time = datetime.now()                      # device-local
-if forecast_time > current_time: ...
+forecast_time = datetime.fromisoformat(time_str)  # city-local, naive
+current_time = datetime.now()  # device-local
+if forecast_time > current_time:
+    ...
 ```
 
 The request uses `timezone=auto`, so `hourly.time` is in the **city's** zone. Verified:
@@ -423,6 +424,7 @@ testpaths = ["tests"]
 import os, pytest
 from pathlib import Path
 
+
 @pytest.fixture(autouse=True)
 def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -436,6 +438,7 @@ def isolated_home(tmp_path, monkeypatch):
 import pytest
 from textual.widgets import TextArea
 from terminallysimple.app import TerminallySimple
+
 
 async def test_typed_text_survives_quit(isolated_home):
     app = TerminallySimple()
@@ -567,3 +570,31 @@ findings (`ruff check --fix` + `ruff format`) and move the ruff config under `[t
 add `RotatingFileHandler`; prime `psutil.cpu_percent`; delete the duplicated weather code in
 `app.py`.
 
+
+---
+
+## 10. Resolution log (v0.2.0)
+
+Every P0/P1 item above is fixed and covered by a test. Mapping:
+
+| Finding | Fix | Test |
+|---|---|---|
+| P0-1 unsaved work lost on quit | buffer cached on `TextArea.Changed`, snapshot written from `on_unmount`, `on_screen_suspend`, `App.on_shutdown` and the quit guard | `tests/test_editor.py::test_typed_text_is_persisted_when_the_app_quits`, `::test_quit_asks_before_dropping_unsaved_changes` |
+| P0-2 notes inside the package | `utils/paths.py` (platformdirs), legacy `notes/` migrated, junk note removed from git | `tests/test_paths.py`, `::test_notes_are_not_stored_inside_the_package`, `::test_editor_survives_a_read_only_notes_folder` |
+| P0-3 non-atomic writes / silent data loss | `utils/storage.py`: atomic writes, `.bak`, corrupt-file quarantine, per-record tolerance | `tests/test_storage.py`, `tests/test_tasks.py` |
+| P0-2b silent overwrite on save | `ConfirmDialog` before overwriting an existing note | `tests/test_editor.py::test_saving_over_an_existing_note_requires_confirmation` |
+| P0-4 `w`/`p` dead in the editor | priority `Ctrl+W` / `Ctrl+P` + help screen; plain letters still type | `tests/test_app.py::test_shortcuts_work_while_typing_in_the_editor` |
+| P0-5 wrong timezone for forecasts | `zoneinfo` + the API's own `current.time` as reference | `tests/test_services.py::test_forecast_starts_at_city_local_time`, `tests/test_weather_integration.py` |
+| P1-6 state per screen, widgets never mounted | `PomodoroService` / `WeatherService` on `App`; real widgets mounted in a CSS header | `tests/test_app.py::test_pomodoro_keeps_running_across_screens`, `::test_header_mounts_real_widgets` |
+| P1-7 preview persists | `preview_theme()` / `save_theme()`; `watch_theme` only persists explicit changes | `tests/test_app.py::test_theme_preview_is_not_persisted_until_saved`, `::test_theme_is_saved_explicitly` |
+| P1-8 header breaks on emoji/narrow terminals | CSS `Horizontal` layout, no manual padding, responsive hiding | `tests/test_app.py::test_header_hides_optional_parts_on_narrow_terminals`, `::test_header_fits_inside_the_terminal_width` |
+| P1-9 tests aren't tests, no CI | 57 pytest tests + conftest isolation, `.github/workflows/ci.yml` (3 OS × 4 Python), pre-commit | whole `tests/` directory, CI |
+| P1-10 packaging broken | valid `[tool.setuptools]`, `terminallysimple` console script, `py.typed`-ready typing, `requires-python >=3.10`, `textual>=0.86`, real dev extras | `pip install -e .` + `terminallysimple --version` (CI build job) |
+
+Also done from the lower-priority list: log rotation, `--version/--notes-dir/--log-level`,
+weather disk cache with "updated" timestamp, °C/°F setting, clearer weather errors, atomic note
+writes, ruff/mypy clean (583 → 0 ruff findings, 24 → 0 mypy errors), and docs rewritten.
+
+Deliberately deferred (next milestones): swapping the hand-rolled focus lists for
+`OptionList`/`ListView`/`DirectoryTree`, editor find/replace + Markdown preview, task
+undo/due dates, command palette (conflicts with `Ctrl+P`), and a `src/` layout migration.

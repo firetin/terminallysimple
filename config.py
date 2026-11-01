@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from utils import paths, storage
 
@@ -31,9 +31,9 @@ class Config:
         "autosave_interval": 30.0,
     }
 
-    def __init__(self, config_file: Optional[Path] = None) -> None:
+    def __init__(self, config_file: Path | None = None) -> None:
         self._config_file = config_file
-        self._config: Optional[dict[str, Any]] = None
+        self._config: dict[str, Any] | None = None
 
     # ------------------------------------------------------------------ paths
     @property
@@ -68,7 +68,7 @@ class Config:
         return storage.save_json_atomic(self.config_file, self.data)
 
     # ------------------------------------------------------------------ access
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
+    def get(self, key: str, default: Any | None = None) -> Any:
         """Get a configuration value."""
         return self.data.get(key, default)
 

@@ -10,12 +10,14 @@ list is skipped instead of discarding the whole list.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional, TypeVar
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,7 @@ T = TypeVar("T")
 BACKUP_SUFFIX: str = ".bak"
 
 
-def _fsync_directory(path: Path) -> "None":  # pragma: no cover - platform dependent
+def _fsync_directory(path: Path) -> None:  # pragma: no cover - platform dependent
     """Best-effort fsync of the directory entry so the rename is durable."""
     try:
         fd = os.open(path, os.O_RDONLY)
@@ -51,7 +53,7 @@ def load_json(path: Path, default: Any = None) -> Any:
         return default
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         logger.error("Corrupt JSON in %s (%s); keeping a copy", path, e)
@@ -124,10 +126,8 @@ def save_json_atomic(path: Path, data: Any) -> bool:
 
     except (OSError, TypeError, ValueError) as e:
         logger.error("Could not save %s: %s", path, e)
-        try:
+        with contextlib.suppress(OSError):
             tmp_path.unlink(missing_ok=True)
-        except OSError:  # pragma: no cover
-            pass
         return False
 
 
@@ -160,10 +160,8 @@ def write_text_atomic(path: Path, text: str) -> bool:
         return True
     except OSError as e:
         logger.error("Could not write %s: %s", path, e)
-        try:
+        with contextlib.suppress(OSError):
             tmp_path.unlink(missing_ok=True)
-        except OSError:  # pragma: no cover
-            pass
         return False
 
 

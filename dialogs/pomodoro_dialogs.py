@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -30,7 +30,7 @@ class PomodoroDialog(ModalScreen[None]):
     def __init__(self, service: PomodoroService, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.service = service
-        self._dialog_timer: Optional[Any] = None
+        self._dialog_timer: Any | None = None
 
     def compose(self) -> ComposeResult:
         """Create the Pomodoro dialog interface."""
@@ -94,7 +94,7 @@ class PomodoroDialog(ModalScreen[None]):
         self.service.reset()
         self._update_display()
 
-    def action_dismiss(self) -> None:  # type: ignore[override]
+    async def action_dismiss(self, result: None = None) -> None:
         """Close the dialog."""
         self.dismiss(None)
 

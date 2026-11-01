@@ -14,11 +14,13 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
-from config import Config, config as global_config
+from config import Config
+from config import config as global_config
 from utils import paths, storage
 from utils.weather import (
     CurrentWeather,
@@ -83,7 +85,7 @@ class PomodoroService(_Observable):
 
         self.session_type: str = self.WORK
         self.work_count: int = 0
-        self._deadline: Optional[float] = None
+        self._deadline: float | None = None
         self._paused = False
         self._remaining: int = work_seconds
 
@@ -153,7 +155,7 @@ class PomodoroService(_Observable):
         self._deadline = None
         self._paused = False
 
-    def tick(self) -> Optional[str]:
+    def tick(self) -> str | None:
         """
         Advance the clock.
 
@@ -184,18 +186,18 @@ class PomodoroService(_Observable):
 class WeatherService(_Observable):
     """Holds the weather configuration/data for the whole app."""
 
-    def __init__(self, config_obj: Optional[Config] = None, cache_file: Optional[Path] = None) -> None:
+    def __init__(self, config_obj: Config | None = None, cache_file: Path | None = None) -> None:
         super().__init__()
         self._config = config_obj or global_config
         self._cache_file = cache_file
 
-        self.city: Optional[str] = None
-        self.latitude: Optional[float] = None
-        self.longitude: Optional[float] = None
-        self.current: Optional[CurrentWeather] = None
+        self.city: str | None = None
+        self.latitude: float | None = None
+        self.longitude: float | None = None
+        self.current: CurrentWeather | None = None
         self.forecast: list[HourlyForecast] = []
-        self.last_updated: Optional[datetime] = None
-        self.error: Optional[str] = None
+        self.last_updated: datetime | None = None
+        self.error: str | None = None
         self.loading: bool = False
         self.load_from_config()
 
@@ -240,7 +242,10 @@ class WeatherService(_Observable):
             return False
 
         data = payload.get("data")
-        current = parse_current_weather(data) if isinstance(data, dict) else None
+        if not isinstance(data, dict):
+            return False
+
+        current = parse_current_weather(data)
         if current is None:
             return False
 

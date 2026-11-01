@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, cast
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -16,6 +17,9 @@ from base_screen import NavigableScreen
 from config import config
 from constants import FOCUS_COLOR, FOCUS_INDICATOR, SELECTED_MARKER, UNSELECTED_MARKER, WidgetIDs
 from widgets.system_header import SystemHeader
+
+if TYPE_CHECKING:  # pragma: no cover
+    from app import TerminallySimple
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +74,7 @@ class SettingsScreen(NavigableScreen):
         Binding("escape", "back", "Back", priority=True),
         Binding("s", "save", "Save", show=True),
         Binding("r", "reset", "Reset", show=True),
-        Binding("enter", "toggle", "Select", show=True),
+        Binding("enter", "select_option", "Select", show=True),
         Binding("down,j", "cursor_down", "Next", show=False),
         Binding("up,k", "cursor_up", "Previous", show=False),
     ]
@@ -132,12 +136,15 @@ class SettingsScreen(NavigableScreen):
             if first is not None:
                 first.focus()
 
+    def _app(self) -> TerminallySimple:
+        return cast("TerminallySimple", self.app)
+
     def on_click(self, event: Click) -> None:
         """Handle clicks on options."""
         if isinstance(event.widget, SettingOption):
             self._toggle_option(event.widget)
 
-    def action_toggle(self) -> None:
+    def action_select_option(self) -> None:
         """Toggle the focused option."""
         focused = self.focused
         if isinstance(focused, SettingOption):
@@ -160,7 +167,7 @@ class SettingsScreen(NavigableScreen):
             self.pending_units = option.value
         else:
             self.pending_theme = option.value
-            self.app.preview_theme(option.value)  # preview only; not persisted
+            self._app().preview_theme(option.value)  # preview only; not persisted
 
         self._update_status("Preview - press 's' to save, Escape to cancel")
 
@@ -175,7 +182,7 @@ class SettingsScreen(NavigableScreen):
 
         self.saved_theme = self.pending_theme
         self.saved_units = self.pending_units
-        self.app.save_theme(self.pending_theme)
+        self._app().save_theme(self.pending_theme)
         self._update_status("\u2713 Saved and applied!")
 
         weather = getattr(self.app, "weather", None)
@@ -190,26 +197,24 @@ class SettingsScreen(NavigableScreen):
 
         for option in self.query(SettingOption):
             option.selected = "unit-" in (option.id or "") and option.value == self.pending_units
-            if not ("unit-" in (option.id or "")):
+            if "unit-" not in (option.id or ""):
                 option.selected = option.value == self.pending_theme
             option.refresh()
 
-        self.app.preview_theme(self.pending_theme)
+        self._app().preview_theme(self.pending_theme)
         self._update_status("Reset to defaults - press 's' to save")
 
     def action_back(self) -> None:
         """Leave the screen, discarding the preview."""
-        self.app.apply_theme_from_config()
+        self._app().apply_theme_from_config()
         self.app.pop_screen()
 
     def get_focusable_items(self) -> list[Widget]:
         return list(self.query(SettingOption))
 
     def _update_status(self, message: str) -> None:
-        try:
+        with contextlib.suppress(Exception):  # widget gone during teardown
             self.query_one(f"#{WidgetIDs.SETTINGS_STATUS}", Static).update(message)
-        except Exception:  # pragma: no cover - during teardown
-            pass
 
 
 SettingsScreen.CSS = """

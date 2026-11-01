@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, cast
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -23,7 +22,7 @@ from textual.widgets import Footer, Static
 
 from base_screen import NavigableScreen
 from config import config
-from constants import DIM_COLOR, FOCUS_COLOR, FOCUS_INDICATOR, FOCUS_TIMER_DELAY, WidgetIDs
+from constants import DIM_COLOR, FOCUS_COLOR, FOCUS_INDICATOR, WidgetIDs
 from dialogs.pomodoro_dialogs import PomodoroDialog
 from dialogs.weather_dialogs import (
     ACTION_CHANGE_CITY,
@@ -98,13 +97,15 @@ class HelpScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with Container(id=WidgetIDs.HELP_CONTAINER):
-            yield Static(f"HELP{(' - ' + self.context) if self.context else ''}", id=WidgetIDs.HELP_TITLE)
+            yield Static(
+                f"HELP{(' - ' + self.context) if self.context else ''}", id=WidgetIDs.HELP_TITLE
+            )
             with Vertical(id=WidgetIDs.HELP_LIST):
                 for key, description in self.bindings:
                     yield Static(f"[bold cyan]{key:<14}[/] {description}")
             yield Static("Press Escape or ? to close", id=WidgetIDs.HELP_HINT)
 
-    def action_dismiss(self) -> None:  # type: ignore[override]
+    async def action_dismiss(self, result: None = None) -> None:
         self.dismiss(None)
 
 
@@ -159,7 +160,7 @@ class MainMenu(NavigableScreen):
         Binding("up,k", "cursor_up", "Previous", show=False),
     ]
 
-    focused: Optional[Widget]
+    focused: Widget | None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the menu."""
@@ -191,6 +192,9 @@ class MainMenu(NavigableScreen):
         if isinstance(event.widget, MenuItem) and event.widget.id:
             self._activate_item(event.widget.id)
 
+    def _app(self) -> TerminallySimple:
+        return cast("TerminallySimple", self.app)
+
     def _activate_item(self, item_id: str) -> None:
         if item_id == WidgetIDs.ITEM_EDITOR:
             self.action_select_editor()
@@ -199,9 +203,9 @@ class MainMenu(NavigableScreen):
         elif item_id == WidgetIDs.ITEM_SETTINGS:
             self.action_select_settings()
         elif item_id == WidgetIDs.ITEM_HELP:
-            self.app.action_show_help()
+            self._app().action_show_help()
         elif item_id == WidgetIDs.ITEM_EXIT:
-            self.app.action_quit()
+            self.run_worker(self._app().action_quit())
 
     def action_select_editor(self) -> None:
         self.app.push_screen(EditorScreen())
@@ -373,7 +377,7 @@ class TerminallySimple(App):
             self._handle_forecast_action,
         )
 
-    def _handle_forecast_action(self, action: Optional[str]) -> None:
+    def _handle_forecast_action(self, action: str | None) -> None:
         if action == ACTION_CHANGE_CITY:
             self._prompt_for_city()
         elif action == ACTION_REFRESH:
@@ -388,7 +392,7 @@ class TerminallySimple(App):
     def _prompt_for_city(self) -> None:
         self.push_screen(CityInputDialog(), self._handle_city_input)
 
-    def _handle_city_input(self, city_name: Optional[str]) -> None:
+    def _handle_city_input(self, city_name: str | None) -> None:
         if city_name:
             self.run_worker(self._set_city(city_name), group="weather")
 
@@ -396,7 +400,9 @@ class TerminallySimple(App):
         if await self.weather.set_city(city_name):
             self._show_forecast()
         else:
-            self.notify(self.weather.error or f"City not found: {city_name}", severity="error", timeout=5)
+            self.notify(
+                self.weather.error or f"City not found: {city_name}", severity="error", timeout=5
+            )
 
     # ------------------------------------------------------------------- help
     def action_show_help(self) -> None:
@@ -426,20 +432,19 @@ class TerminallySimple(App):
         for editor in self._editors():
             editor.save_snapshot()
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
         """Quit, but never drop unsaved editor content without asking."""
         editors = self._editors()
         dirty = [editor for editor in editors if editor.is_modified]
 
         if dirty:
-            def handle_quit(confirmed: Optional[bool]) -> None:
+
+            def handle_quit(confirmed: bool | None) -> None:
                 if confirmed:
                     self._save_all_editors()
                     self.exit()
 
-            self.push_screen(
-                ConfirmDialog("You have unsaved changes. Quit anyway?"), handle_quit
-            )
+            self.push_screen(ConfirmDialog("You have unsaved changes. Quit anyway?"), handle_quit)
             return
 
         self._save_all_editors()
@@ -456,9 +461,7 @@ def _configure_logging(level: str = "INFO") -> None:
     handler = RotatingFileHandler(
         paths.log_file(), maxBytes=1_000_000, backupCount=3, encoding="utf-8"
     )
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logging.basicConfig(level=getattr(logging, level.upper(), logging.INFO), handlers=[handler])
 
     for noisy in ("httpx", "httpcore", "hpack"):
@@ -487,7 +490,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[list[str]] = None) -> None:
+def main(argv: list[str] | None = None) -> None:
     """Entry point for the application."""
     args = build_parser().parse_args(argv)
     _configure_logging(args.log_level)

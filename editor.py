@@ -10,27 +10,27 @@ import platform
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 
 from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Vertical
 from textual.css.query import NoMatches
 from textual.events import Click
-from textual.screen import Screen, ModalScreen
-from textual.widgets import Footer, TextArea, Static, Button, Input, Label
-from textual.containers import Container, Vertical, Horizontal
-from textual.binding import Binding
-from textual.widget import Widget
+from textual.screen import ModalScreen, Screen
 from textual.timer import Timer
+from textual.widget import Widget
+from textual.widgets import Footer, Input, Label, Static, TextArea
 
 from base_screen import NavigableMixin
 from config import config
 from constants import (
     AUTOSAVE_INTERVAL,
-    FOCUS_INDICATOR,
-    FOCUS_COLOR,
     DIM_COLOR,
-    TAB_SPACES,
+    FOCUS_COLOR,
+    FOCUS_INDICATOR,
     FOCUS_TIMER_DELAY,
+    TAB_SPACES,
     WidgetIDs,
 )
 from utils import paths, storage
@@ -42,18 +42,18 @@ logger = logging.getLogger(__name__)
 
 class ConfirmDialog(ModalScreen[bool]):
     """Modal dialog for confirming actions."""
-    
+
     def __init__(self, message: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.message: str = message
-    
+
     def compose(self) -> ComposeResult:
         """Create the confirmation dialog interface."""
         with Container(id=WidgetIDs.CONFIRM_CONTAINER):
             yield Static("CONFIRM", id=WidgetIDs.CONFIRM_TITLE)
             yield Static(self.message, id=WidgetIDs.CONFIRM_MESSAGE)
             yield Static("Press 'y' to confirm, 'n' or Escape to cancel", id=WidgetIDs.CONFIRM_HINT)
-    
+
     def on_key(self, event) -> None:
         """Handle keyboard shortcuts."""
         if event.key == "y":
@@ -64,18 +64,20 @@ class ConfirmDialog(ModalScreen[bool]):
 
 class ConfirmDeleteFileDialog(ModalScreen[bool]):
     """Modal dialog for confirming file deletion."""
-    
+
     def __init__(self, filename: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.filename: str = filename
-    
+
     def compose(self) -> ComposeResult:
         """Create the confirmation dialog interface."""
         with Container(id="confirm-delete-file-container"):
             yield Static("DELETE FILE", id="confirm-delete-file-title")
             yield Static(f"Delete '{self.filename}'?", id="confirm-delete-file-message")
-            yield Static("Press 'y' to delete, 'n' or Escape to cancel", id="confirm-delete-file-hint")
-    
+            yield Static(
+                "Press 'y' to delete, 'n' or Escape to cancel", id="confirm-delete-file-hint"
+            )
+
     def on_key(self, event) -> None:
         """Handle keyboard shortcuts."""
         if event.key == "y":
@@ -154,17 +156,17 @@ ConfirmDeleteFileDialog {
 
 class ClickablePath(Static, can_focus=True):
     """A clickable path that opens the folder."""
-    
+
     def __init__(self, path: Path, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.path: Path = path
-    
+
     def render(self) -> str:
         """Render the path."""
         if self.has_focus:
             return f"Location: [{FOCUS_COLOR}][link]{self.path}[/link][/] [{DIM_COLOR}](click to open)[/]"
         return f"Location: [link]{self.path}[/link] [{DIM_COLOR}](click to open)[/]"
-    
+
     def on_click(self) -> None:
         """Open the folder when clicked in the system's file manager."""
         try:
@@ -172,55 +174,56 @@ class ClickablePath(Static, can_focus=True):
             if not self.path.exists() or not self.path.is_dir():
                 logger.warning(f"Path does not exist or is not a directory: {self.path}")
                 return
-            
+
             system = platform.system()
             path_str = str(self.path.resolve())  # Use resolved absolute path
-            
-            if system == 'Darwin':  # macOS
-                subprocess.run(['open', path_str], check=False)
-            elif system == 'Windows':
-                subprocess.run(['explorer', path_str], check=False)
+
+            if system == "Darwin":  # macOS
+                subprocess.run(["open", path_str], check=False)
+            elif system == "Windows":
+                subprocess.run(["explorer", path_str], check=False)
             else:  # Linux and other Unix-like systems
-                subprocess.run(['xdg-open', path_str], check=False)
+                subprocess.run(["xdg-open", path_str], check=False)
         except FileNotFoundError:
             # File manager command not available
             logger.debug("File manager command not available")
         except (OSError, subprocess.SubprocessError) as e:
             logger.warning(f"Could not open folder: {e}")
-    
+
     def on_focus(self) -> None:
         """Refresh when focused."""
         self.refresh()
-    
+
     def on_blur(self) -> None:
         """Refresh when focus lost."""
         self.refresh()
 
 
-class FilenamePrompt(ModalScreen[Optional[str]]):
+class FilenamePrompt(ModalScreen[str | None]):
     """Modal screen for entering a filename."""
-    
+
     def compose(self) -> ComposeResult:
         """Create the filename prompt interface."""
-        from textual.widgets import Input, Label
-        from textual.containers import Vertical
-        
+        from textual.widgets import Input
+
         with Container(id=WidgetIDs.PROMPT_CONTAINER):
             yield Static("SAVE FILE", id=WidgetIDs.PROMPT_TITLE)
             yield Label("Enter filename:", id=WidgetIDs.PROMPT_LABEL)
             yield Input(placeholder="my-note", id=WidgetIDs.FILENAME_INPUT)
             yield Static("Press Enter to save, Escape to cancel", id=WidgetIDs.PROMPT_HINT)
-            yield Static("Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.PROMPT_RULES)
-    
+            yield Static(
+                "Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.PROMPT_RULES
+            )
+
     def on_mount(self) -> None:
         """Focus the input when mounted."""
         self.query_one(f"#{WidgetIDs.FILENAME_INPUT}").focus()
-    
+
     def on_input_submitted(self, event) -> None:
         """Handle Enter key in input."""
         filename = event.value.strip()
         self.dismiss(filename if filename else None)
-    
+
     def on_key(self, event) -> None:
         """Handle escape key."""
         if event.key == "escape":
@@ -270,39 +273,44 @@ FilenamePrompt {
 """
 
 
-class RenamePrompt(ModalScreen[Optional[str]]):
+class RenamePrompt(ModalScreen[str | None]):
     """Modal screen for renaming a file."""
-    
+
     def __init__(self, current_filename: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.current_filename: str = current_filename
-    
+
     def compose(self) -> ComposeResult:
         """Create the rename prompt interface."""
-        from textual.widgets import Input, Label
-        from textual.containers import Vertical
-        
+        from textual.widgets import Input
+
         # Remove extension for display
-        display_name = self.current_filename.rsplit('.', 1)[0] if '.' in self.current_filename else self.current_filename
-        
+        display_name = (
+            self.current_filename.rsplit(".", 1)[0]
+            if "." in self.current_filename
+            else self.current_filename
+        )
+
         with Container(id=WidgetIDs.RENAME_CONTAINER):
             yield Static("RENAME FILE", id=WidgetIDs.RENAME_TITLE)
             yield Label("Enter new filename (without extension):", id=WidgetIDs.RENAME_LABEL)
             yield Input(value=display_name, placeholder="my-note", id=WidgetIDs.RENAME_INPUT)
             yield Static("Press Enter to rename, Escape to cancel", id=WidgetIDs.RENAME_HINT)
-            yield Static("Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.RENAME_RULES)
-    
+            yield Static(
+                "Alphanumeric, spaces, hyphens, underscores only", id=WidgetIDs.RENAME_RULES
+            )
+
     def on_mount(self) -> None:
         """Focus the input when mounted and select all text."""
         input_widget = self.query_one(f"#{WidgetIDs.RENAME_INPUT}", Input)
         input_widget.focus()
         input_widget.action_select_all()
-    
+
     def on_input_submitted(self, event) -> None:
         """Handle Enter key in input."""
         filename = event.value.strip()
         self.dismiss(filename if filename else None)
-    
+
     def on_key(self, event) -> None:
         """Handle escape key."""
         if event.key == "escape":
@@ -354,30 +362,30 @@ RenamePrompt {
 
 class FileItem(Static, can_focus=True):
     """A clickable file item in the browser."""
-    
+
     def __init__(self, filename: str, filepath: Path, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.filename: str = filename
         self.filepath: Path = filepath
-    
+
     def render(self) -> str:
         """Render the file item - always show focus state."""
         if self.has_focus:
             return f"[{FOCUS_COLOR}]{FOCUS_INDICATOR}[/] {self.filename}"
         return f"  {self.filename}"
-    
+
     def on_focus(self) -> None:
         """Refresh when focused."""
         self.refresh()
-    
+
     def on_blur(self) -> None:
         """Refresh when focus lost."""
         self.refresh()
 
 
-class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
+class FileBrowser(NavigableMixin, ModalScreen[Path | None]):
     """Modal screen for browsing and selecting files."""
-    
+
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel", priority=True),
         Binding("enter", "select", "Open", show=False),
@@ -385,44 +393,50 @@ class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
         Binding("down,j", "cursor_down", "Next", show=False),
         Binding("up,k", "cursor_up", "Previous", show=False),
     ]
-    
+
     def __init__(self, documents_dir: Path) -> None:
         super().__init__()
         self.documents_dir: Path = documents_dir
-        self.selected_file: Optional[Path] = None
-        self.focused: Optional[Widget] = None
-    
+        self.selected_file: Path | None = None
+        self.focused: Widget | None = None
+
     def compose(self) -> ComposeResult:
         """Create the file browser interface."""
         from textual.widgets import Footer
+
         # Support multiple text file extensions
-        all_files = []
-        for ext in ['*.md', '*.txt', '*.text']:
+        all_files: list[Path] = []
+        for ext in ["*.md", "*.txt", "*.text"]:
             all_files.extend(self.documents_dir.glob(ext))
         files = sorted(all_files, key=os.path.getmtime, reverse=True)
-        
+
         yield Container(
             Static("OPEN FILE", id=WidgetIDs.BROWSER_TITLE),
             ClickablePath(self.documents_dir, id=WidgetIDs.BROWSER_PATH),
             Static("", id=WidgetIDs.BROWSER_SPACER),
             Vertical(
-                *(FileItem(
-                    f"{file.stem}  [dim]{self._format_time(os.path.getmtime(file))}[/]",
-                    file
-                ) for file in files) if files else [Static("No files found. Save a file first!", id=WidgetIDs.NO_FILES)],
-                id=WidgetIDs.FILE_LIST
+                *(
+                    FileItem(
+                        f"{file.stem}  [dim]{self._format_time(os.path.getmtime(file))}[/]", file
+                    )
+                    for file in files
+                )
+                if files
+                else [Static("No files found. Save a file first!", id=WidgetIDs.NO_FILES)],
+                id=WidgetIDs.FILE_LIST,
             ),
-            id=WidgetIDs.BROWSER_CONTAINER
+            id=WidgetIDs.BROWSER_CONTAINER,
         )
         yield Footer()
-    
+
     def _format_time(self, timestamp: float) -> str:
         """Format timestamp for display."""
         mod_time = datetime.fromtimestamp(timestamp)
         return mod_time.strftime("%Y-%m-%d %H:%M")
-    
+
     def on_mount(self) -> None:
         """Focus first file when mounted."""
+
         def set_initial_focus() -> None:
             try:
                 first_item = self.query_one(FileItem)
@@ -430,67 +444,67 @@ class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
             except Exception:
                 # No file items available, nothing to focus
                 pass
+
         # Use set_timer for a slight delay to ensure rendering is complete
         self.set_timer(FOCUS_TIMER_DELAY, set_initial_focus)
-    
+
     def on_click(self, event: Click) -> None:
         """Handle clicks on file items."""
         if isinstance(event.widget, FileItem):
             self.selected_file = event.widget.filepath
             self.dismiss(self.selected_file)
-    
+
     def action_select(self) -> None:
         """Select the focused file."""
         focused = self.focused
         if isinstance(focused, FileItem):
             self.selected_file = focused.filepath
             self.dismiss(self.selected_file)
-    
-    def action_dismiss(self) -> None:
+
+    async def action_dismiss(self, result: Path | None = None) -> None:
         """Cancel file selection."""
         self.dismiss(None)
-    
+
     def action_delete_file(self) -> None:
         """Delete the focused file with confirmation."""
         focused = self.focused
         if not isinstance(focused, FileItem):
             return
-        
+
         file_to_delete = focused.filepath
-        
-        def handle_confirm(confirmed: Optional[bool]) -> None:
+
+        def handle_confirm(confirmed: bool | None) -> None:
             if confirmed:
                 try:
                     file_to_delete.unlink()
                     logger.info(f"Deleted file: {file_to_delete.name}")
                     # Refresh the file list
                     self._refresh_file_list()
-                except (OSError, IOError) as e:
+                except OSError as e:
                     logger.error(f"Failed to delete file: {e}")
-        
-        self.app.push_screen(
-            ConfirmDeleteFileDialog(file_to_delete.stem),
-            handle_confirm
-        )
-    
+
+        self.app.push_screen(ConfirmDeleteFileDialog(file_to_delete.stem), handle_confirm)
+
     def _refresh_file_list(self) -> None:
         """Refresh the file list after deletion."""
         # Clear existing file items
         file_list = self.query_one(f"#{WidgetIDs.FILE_LIST}", Vertical)
         file_list.remove_children()
-        
+
         # Reload files - support multiple text file extensions
-        all_files = []
-        for ext in ['*.md', '*.txt', '*.text']:
+        all_files: list[Path] = []
+        for ext in ["*.md", "*.txt", "*.text"]:
             all_files.extend(self.documents_dir.glob(ext))
         files = sorted(all_files, key=os.path.getmtime, reverse=True)
-        
+
         if files:
             for file in files:
-                file_list.mount(FileItem(
-                    f"{file.stem}  [dim]{self._format_time(os.path.getmtime(file))}[/]",
-                    file
-                ))
+                file_list.mount(
+                    FileItem(
+                        f"{file.stem}  [dim]{self._format_time(os.path.getmtime(file))}[/]", file
+                    )
+                )
+
             # Focus first item
             def set_focus() -> None:
                 try:
@@ -498,11 +512,12 @@ class FileBrowser(NavigableMixin, ModalScreen[Optional[Path]]):
                     self.set_focus(first_item)
                 except Exception:
                     pass
+
             self.set_timer(FOCUS_TIMER_DELAY, set_focus)
         else:
             # Show no files message
             file_list.mount(Static("No files found. Save a file first!", id=WidgetIDs.NO_FILES))
-    
+
     def get_focusable_items(self) -> list[Widget]:
         """Return focusable items for navigation (ClickablePath and FileItems)."""
         focusable: list[Widget] = []
@@ -601,10 +616,10 @@ class EditorScreen(Screen):
 
     def __init__(self) -> None:
         super().__init__()
-        self.current_file: Optional[Path] = None
+        self.current_file: Path | None = None
         self.is_modified: bool = False  # Track if content has been modified
         self.original_content: str = ""  # Store original content for comparison
-        self.autosave_timer: Optional[Timer] = None  # Timer for autosaving
+        self.autosave_timer: Timer | None = None  # Timer for autosaving
         self.autosave_enabled: bool = True
         self.autosave_interval: float = float(config.get("autosave_interval", AUTOSAVE_INTERVAL))
 
@@ -620,7 +635,7 @@ class EditorScreen(Screen):
 
         # Cache of the buffer, so snapshots keep working after the DOM is gone
         # (Textual detaches widgets before dispatching ``on_unmount``).
-        self._text_area: Optional[TextArea] = None
+        self._text_area: TextArea | None = None
         self._cached_text: str = ""
 
     # ------------------------------------------------------------------ setup
@@ -711,7 +726,7 @@ class EditorScreen(Screen):
             snapshot.unlink(missing_ok=True)
             return
 
-        def handle_recovery(confirmed: Optional[bool]) -> None:
+        def handle_recovery(confirmed: bool | None) -> None:
             if confirmed:
                 self._load_content(content, self.current_file)
                 self.is_modified = True
@@ -732,7 +747,7 @@ class EditorScreen(Screen):
         self.is_modified = self._cached_text != self.original_content
         self._update_status_with_file()
 
-    def _load_content(self, content: str, file: Optional[Path]) -> None:
+    def _load_content(self, content: str, file: Path | None) -> None:
         """Put ``content`` in the buffer and reset the modified bookkeeping."""
         self._cached_text = content
         self.original_content = content
@@ -769,7 +784,7 @@ class EditorScreen(Screen):
             self._write_document(self.current_file)
             return
 
-        def handle_filename(filename: Optional[str]) -> None:
+        def handle_filename(filename: str | None) -> None:
             if filename:
                 self._save_as(filename)
 
@@ -793,7 +808,8 @@ class EditorScreen(Screen):
             return
 
         if target.exists() and target != self.current_file:
-            def handle_overwrite(confirmed: Optional[bool]) -> None:
+
+            def handle_overwrite(confirmed: bool | None) -> None:
                 if confirmed:
                     self._write_document(target)
 
@@ -823,7 +839,8 @@ class EditorScreen(Screen):
 
     def action_open(self) -> None:
         """Open a file from the notes directory."""
-        def handle_file_selection(selected_file: Optional[Path]) -> None:
+
+        def handle_file_selection(selected_file: Path | None) -> None:
             if not selected_file:
                 return
 
@@ -846,7 +863,8 @@ class EditorScreen(Screen):
 
     def action_new(self) -> None:
         """Create a new document."""
-        def confirm_new(confirmed: Optional[bool]) -> None:
+
+        def confirm_new(confirmed: bool | None) -> None:
             if confirmed:
                 if self.is_modified:
                     self.save_snapshot()
@@ -867,7 +885,7 @@ class EditorScreen(Screen):
             self._update_status("Cannot rename: No file is currently open")
             return
 
-        def handle_rename(filename: Optional[str]) -> None:
+        def handle_rename(filename: str | None) -> None:
             if not filename or self.current_file is None:
                 return
 
@@ -912,7 +930,8 @@ class EditorScreen(Screen):
 
     def action_back(self) -> None:
         """Return to the main menu."""
-        def confirm_back(confirmed: Optional[bool]) -> None:
+
+        def confirm_back(confirmed: bool | None) -> None:
             if confirmed:
                 self.app.pop_screen()
 

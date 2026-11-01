@@ -171,7 +171,9 @@ def test_weather_service_uses_disk_cache(tmp_path: Path) -> None:
     assert reloaded.forecast[0].time == "20:00"
 
 
-async def test_weather_refresh_failure_sets_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_weather_refresh_failure_sets_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = Config(tmp_path / "config.json")
     cfg.set("weather_city", "Nowhere")
     cfg.set("weather_latitude", 1.0)

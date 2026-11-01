@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Final, Optional
+from typing import Any, Final
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
@@ -58,11 +58,11 @@ class WeatherCache:
     """Simple in-memory cache for weather data, keyed by coordinates."""
 
     def __init__(self) -> None:
-        self.data: Optional[dict[str, Any]] = None
-        self.timestamp: Optional[datetime] = None
-        self.key: Optional[tuple[float, float, str]] = None
+        self.data: dict[str, Any] | None = None
+        self.timestamp: datetime | None = None
+        self.key: tuple[float, float, str] | None = None
 
-    def is_valid(self, key: Optional[tuple[float, float, str]] = None) -> bool:
+    def is_valid(self, key: tuple[float, float, str] | None = None) -> bool:
         """Check whether the cached payload is still usable for ``key``."""
         if self.data is None or self.timestamp is None:
             return False
@@ -70,13 +70,13 @@ class WeatherCache:
             return False
         return datetime.now() - self.timestamp < timedelta(minutes=CACHE_DURATION_MINUTES)
 
-    def set(self, data: dict[str, Any], key: Optional[tuple[float, float, str]] = None) -> None:
+    def set(self, data: dict[str, Any], key: tuple[float, float, str] | None = None) -> None:
         """Store data in the cache."""
         self.data = data
         self.timestamp = datetime.now()
         self.key = key
 
-    def get(self, key: Optional[tuple[float, float, str]] = None) -> Optional[dict[str, Any]]:
+    def get(self, key: tuple[float, float, str] | None = None) -> dict[str, Any] | None:
         """Get cached data if valid for ``key``."""
         return self.data if self.is_valid(key) else None
 
@@ -169,7 +169,7 @@ def get_weather_description(weather_code: int) -> str:
     return descriptions.get(weather_code, "Unknown")
 
 
-async def geocode_city(city_name: str) -> Optional[tuple[str, float, float]]:
+async def geocode_city(city_name: str) -> tuple[str, float, float] | None:
     """
     Convert a city name to coordinates using the Open-Meteo Geocoding API.
 
@@ -212,7 +212,7 @@ async def fetch_weather(
     longitude: float,
     use_cache: bool = True,
     units: str = "celsius",
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Fetch current weather and hourly forecast from Open-Meteo.
 
@@ -268,7 +268,7 @@ def _unit_symbol(data: dict[str, Any]) -> str:
     return symbol if isinstance(symbol, str) else "°C"
 
 
-def parse_current_weather(data: dict[str, Any]) -> Optional[CurrentWeather]:
+def parse_current_weather(data: dict[str, Any]) -> CurrentWeather | None:
     """Parse the ``current`` block of an Open-Meteo response."""
     try:
         current = data["current"]
@@ -285,7 +285,7 @@ def parse_current_weather(data: dict[str, Any]) -> Optional[CurrentWeather]:
         return None
 
 
-def city_timezone(data: dict[str, Any]) -> Optional[ZoneInfo]:
+def city_timezone(data: dict[str, Any]) -> ZoneInfo | None:
     """Return the location's timezone as a ``ZoneInfo`` (``None`` if unknown)."""
     name = data.get("timezone")
     if not isinstance(name, str) or not name:
@@ -297,7 +297,7 @@ def city_timezone(data: dict[str, Any]) -> Optional[ZoneInfo]:
         return None
 
 
-def _reference_time(data: dict[str, Any]) -> Optional[datetime]:
+def _reference_time(data: dict[str, Any]) -> datetime:
     """
     The API's own idea of "now" in the location's timezone.
 

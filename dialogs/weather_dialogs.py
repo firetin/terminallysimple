@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -22,7 +22,7 @@ ACTION_CHANGE_CITY = "change_city"
 ACTION_REFRESH = "refresh"
 
 
-class CityInputDialog(ModalScreen[Optional[str]]):
+class CityInputDialog(ModalScreen[str | None]):
     """Modal dialog for entering a city name for weather setup."""
 
     BINDINGS = [
@@ -34,7 +34,9 @@ class CityInputDialog(ModalScreen[Optional[str]]):
         with Container(id=WidgetIDs.WEATHER_CITY_CONTAINER):
             yield Static("WEATHER SETUP", id=WidgetIDs.WEATHER_CITY_TITLE)
             yield Label("Enter your city name:", id=WidgetIDs.WEATHER_CITY_LABEL)
-            yield Input(placeholder="e.g., London, New York, Tokyo", id=WidgetIDs.WEATHER_CITY_INPUT)
+            yield Input(
+                placeholder="e.g., London, New York, Tokyo", id=WidgetIDs.WEATHER_CITY_INPUT
+            )
             yield Static("Press Enter to search, Escape to cancel", id=WidgetIDs.WEATHER_CITY_HINT)
             yield Static("", id=WidgetIDs.WEATHER_CITY_ERROR)
 
@@ -103,7 +105,7 @@ CityInputDialog {
 """
 
 
-class WeatherForecastDialog(ModalScreen[Optional[str]]):
+class WeatherForecastDialog(ModalScreen[str | None]):
     """Modal dialog showing the current conditions and hourly forecast."""
 
     BINDINGS = [
@@ -116,10 +118,10 @@ class WeatherForecastDialog(ModalScreen[Optional[str]]):
     def __init__(
         self,
         city_name: str,
-        current: Optional[CurrentWeather],
+        current: CurrentWeather | None,
         forecast: list[HourlyForecast],
-        last_updated: Optional[datetime] = None,
-        error: Optional[str] = None,
+        last_updated: datetime | None = None,
+        error: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -168,7 +170,7 @@ class WeatherForecastDialog(ModalScreen[Optional[str]]):
             f"  [dim]{current.description}[/]"
         )
 
-    def action_dismiss(self) -> None:  # type: ignore[override]
+    async def action_dismiss(self, result: str | None = None) -> None:
         """Close the forecast dialog."""
         self.dismiss(None)
 

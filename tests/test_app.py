@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from config import Config
 from app import HelpScreen, MainMenu, TerminallySimple
+from config import Config
 from dialogs.pomodoro_dialogs import PomodoroDialog
 from dialogs.weather_dialogs import CityInputDialog
 from editor import EditorScreen
@@ -135,12 +135,12 @@ async def test_theme_preview_is_not_persisted_until_saved() -> None:
         await pilot.press("enter")
         await pilot.pause()
 
-        assert app.theme == "nord"                 # preview applied
+        assert app.theme == "nord"  # preview applied
         assert Config().get("theme") == "textual-dark"  # but not saved
 
         await pilot.press("escape")
         await pilot.pause()
-        assert app.theme == "textual-dark"         # preview reverted
+        assert app.theme == "textual-dark"  # preview reverted
 
 
 async def test_theme_is_saved_explicitly() -> None:

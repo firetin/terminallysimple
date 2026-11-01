@@ -9,9 +9,10 @@ hand-padded strings.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import psutil
 from rich.text import Text
@@ -35,7 +36,7 @@ class PomodoroWidget(Static):
     can_focus = False
 
     def on_mount(self) -> None:
-        self._remove_listener: Optional[Any] = None
+        self._remove_listener: Any | None = None
         service = getattr(self.app, "pomodoro", None)
         if service is not None:
             self._remove_listener = service.add_listener(self.refresh)
@@ -74,7 +75,7 @@ class WeatherWidget(Static):
     can_focus = False
 
     def on_mount(self) -> None:
-        self._remove_listener: Optional[Any] = None
+        self._remove_listener: Any | None = None
         service = getattr(self.app, "weather", None)
         if service is not None:
             self._remove_listener = service.add_listener(self.refresh)
@@ -170,7 +171,7 @@ class SystemHeader(Widget):
         self.show_clock = show_clock
         self.show_weather = show_weather
         self.show_pomodoro = show_pomodoro
-        self._header_timer: Optional[Any] = None
+        self._header_timer: Any | None = None
 
     def compose(self) -> ComposeResult:
         """Compose the three header regions."""
@@ -226,10 +227,8 @@ class SystemHeader(Widget):
         title.update(Text(str(screen_title), overflow="ellipsis", no_wrap=True))
 
         if self.show_clock:
-            try:
+            with contextlib.suppress(Exception):  # hidden/removed during teardown
                 self.query_one("#header-clock", Static).update(datetime.now().strftime("%X"))
-            except Exception:  # pragma: no cover - hidden on narrow terminals
-                pass
 
     def _apply_responsive_layout(self, width: int) -> None:
         """Hide optional elements that would not fit in ``width`` columns."""

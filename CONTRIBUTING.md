@@ -1,71 +1,92 @@
 # Contributing to Terminally Simple
 
-Thank you for contributing! Please see our [Code of Conduct](CODE_OF_CONDUCT.md).
+Thanks for helping out! Please read our [Code of Conduct](CODE_OF_CONDUCT.md) first.
 
-## How to Contribute
+## How to contribute
 
-### Reporting Bugs
+### Reporting bugs
 
-Check existing issues first, then create a new issue with:
-* Clear title and description
-* Steps to reproduce
-* Expected vs actual behavior
-* Environment details (OS, Python version, terminal)
+Check existing issues first, then open one with:
 
-### Suggesting Features
+* a clear title and description
+* steps to reproduce
+* expected vs. actual behaviour
+* environment details (OS, Python version, terminal)
 
-Open an issue with:
-* Clear description of the feature
-* Why it would be useful
-* Examples if applicable
+### Suggesting features
 
-### Pull Requests
+Open an issue describing the feature, why it is useful and how it fits the
+"keyboard-first, zero distraction" goal. Small, focused features land fastest.
 
-* Follow Python style (Black, Ruff)
-* Update documentation
-* Keep changes focused and minimal
+## Development setup
 
-## Development Setup
+Requires Python 3.10+.
 
-**Using uv (recommended):**
 ```bash
-git clone https://github.com/yourusername/terminallysimple.git
-cd terminallysimple
-uv venv
-uv pip install -r requirements.txt
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-python app.py
-```
-
-**Using pip:**
-```bash
-git clone https://github.com/yourusername/terminallysimple.git
+git clone https://github.com/firetin/terminallysimple.git
 cd terminallysimple
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python app.py
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+terminallysimple               # or: python -m app
 ```
+
+With [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv venv
+uv pip install -e ".[dev]"
+uv run terminallysimple
+```
+
+`pre-commit install` wires the linters into your commits.
+
+## Checks before opening a pull request
+
+```bash
+ruff check .
+ruff format --check .
+mypy .
+python -m pytest --cov
+```
+
+All four run in CI on Linux, macOS and Windows for Python 3.10–3.13.
+The workflow lives in `ci/github-actions-ci.yml`; move it to
+`.github/workflows/ci.yml` to enable it on your fork.
+
+## Tests
+
+The UI tests use Textual's `run_test()` driver and run headless:
+
+```python
+async def test_something(pilot) -> None:
+    app = TerminallySimple()
+    async with app.run_test() as pilot:
+        await pilot.press("1")
+        assert isinstance(app.screen, EditorScreen)
+```
+
+`tests/conftest.py` redirects `HOME`/`XDG_*` to a temporary directory for every
+test, so tests never touch your real notes, tasks or settings. Please keep it
+that way (use `tmp_path`, never the user's home directory).
 
 ## Guidelines
 
-* **Keep it simple** - Minimal and focused features
-* **Keyboard-first** - Avoid mouse-only interactions
-* **Follow existing patterns** - Match current UI/code style
-* **Use Black & Ruff** - Format code before committing
+* **Keep it simple** — minimal, focused features.
+* **Keyboard-first** — every action needs a key binding and must appear in `?` help.
+* **Never lose user data** — write through `utils.storage` (atomic writes), keep
+  autosave test coverage green.
+* **State lives in services** — `services.py` owns cross-screen state; widgets are views.
+* **Style** — `ruff format` (100 columns) and the ruff rules in `pyproject.toml`.
 
-## Git Workflow
+## Pull requests
 
 ```bash
 git checkout -b feature/my-feature
-# Make changes
+# make changes
 git commit -m "Add feature description"
 git push origin feature/my-feature
-# Open Pull Request
 ```
 
-Use clear commit messages in present tense ("Add feature" not "Added feature").
-
-## Questions?
-
-Open an issue or discussion. Thank you for contributing!
+Use present-tense commit messages ("Add feature", not "Added feature") and keep
+a pull request focused on one thing.

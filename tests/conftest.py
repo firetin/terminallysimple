@@ -6,7 +6,6 @@ developer's real config, notes or task list.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
