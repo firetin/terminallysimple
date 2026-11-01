@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Help screen (`?` or `F1`) generated from the active bindings
+- 3-day forecast in the weather dialog (daily min/max and conditions)
+- The editor reopens the note you were last writing and shows a live word count
+- `Ctrl+Z` in the task manager undoes the last delete, edit or clear
 - Temperature units (°C/°F) in Settings
 - Weather disk cache plus "last updated" in the forecast dialog, and clearer errors
 - `--version`, `--notes-dir` and `--log-level` command line options

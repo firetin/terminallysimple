@@ -371,6 +371,7 @@ class TerminallySimple(App):
                 city_name=self.weather.city or "",
                 current=self.weather.current,
                 forecast=self.weather.forecast,
+                daily=self.weather.daily,
                 last_updated=self.weather.last_updated,
                 error=self.weather.error,
             ),

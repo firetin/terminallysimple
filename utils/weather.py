@@ -54,6 +54,20 @@ class HourlyForecast:
     unit: str = "°C"
 
 
+@dataclass(frozen=True)
+class DailyForecast:
+    """One day of the daily forecast."""
+
+    date: str
+    weekday: str
+    temperature_max: float
+    temperature_min: float
+    weather_code: int
+    icon: str
+    description: str
+    unit: str = "°C"
+
+
 class WeatherCache:
     """Simple in-memory cache for weather data, keyed by coordinates."""
 
@@ -241,6 +255,7 @@ async def fetch_weather(
                     "longitude": longitude,
                     "current": "temperature_2m,weather_code,wind_speed_10m",
                     "hourly": "temperature_2m,weather_code,precipitation_probability",
+                    "daily": "weather_code,temperature_2m_max,temperature_2m_min",
                     "timezone": "auto",
                     "temperature_unit": units,
                     "forecast_days": 2,
@@ -380,6 +395,46 @@ def parse_hourly_forecast(
             index += step
         else:
             index += 1
+
+    return forecast
+
+
+def parse_daily_forecast(data: dict[str, Any], days: int = 3) -> list[DailyForecast]:
+    """Parse the ``daily`` block (a few days ahead, in the city's timezone)."""
+    try:
+        daily = data["daily"]
+        dates = daily["time"]
+        maximums = daily["temperature_2m_max"]
+        minimums = daily["temperature_2m_min"]
+        codes = daily["weather_code"]
+    except (KeyError, TypeError) as e:
+        logger.debug("No daily forecast in payload: %s", e)
+        return []
+
+    unit = _unit_symbol(data)
+    forecast: list[DailyForecast] = []
+
+    for index, raw_date in enumerate(dates[:days]):
+        try:
+            day = datetime.fromisoformat(raw_date)
+            weather_code = int(codes[index])
+            maximum = float(maximums[index])
+            minimum = float(minimums[index])
+        except (IndexError, TypeError, ValueError):
+            continue
+
+        forecast.append(
+            DailyForecast(
+                date=raw_date,
+                weekday=day.strftime("%a"),
+                temperature_max=maximum,
+                temperature_min=minimum,
+                weather_code=weather_code,
+                icon=get_weather_icon(weather_code),
+                description=get_weather_description(weather_code),
+                unit=unit,
+            )
+        )
 
     return forecast
 

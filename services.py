@@ -24,10 +24,12 @@ from config import config as global_config
 from utils import paths, storage
 from utils.weather import (
     CurrentWeather,
+    DailyForecast,
     HourlyForecast,
     fetch_weather,
     geocode_city,
     parse_current_weather,
+    parse_daily_forecast,
     parse_hourly_forecast,
 )
 
@@ -196,6 +198,7 @@ class WeatherService(_Observable):
         self.longitude: float | None = None
         self.current: CurrentWeather | None = None
         self.forecast: list[HourlyForecast] = []
+        self.daily: list[DailyForecast] = []
         self.last_updated: datetime | None = None
         self.error: str | None = None
         self.loading: bool = False
@@ -251,6 +254,7 @@ class WeatherService(_Observable):
 
         self.current = current
         self.forecast = parse_hourly_forecast(data, hours=8, step=3)
+        self.daily = parse_daily_forecast(data, days=3)
         stamp = payload.get("fetched_at")
         try:
             self.last_updated = datetime.fromisoformat(stamp) if isinstance(stamp, str) else None
@@ -285,6 +289,7 @@ class WeatherService(_Observable):
         self.last_updated = None
         self.current = None
         self.forecast = []
+        self.daily = []
         return await self.refresh(force=force)
 
     async def refresh(self, *, force: bool = False) -> bool:
@@ -323,6 +328,7 @@ class WeatherService(_Observable):
 
         self.current = current
         self.forecast = parse_hourly_forecast(data, hours=8, step=3)
+        self.daily = parse_daily_forecast(data, days=3)
         self.last_updated = datetime.now()
         self.loading = False
         self.error = None

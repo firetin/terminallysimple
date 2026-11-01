@@ -17,9 +17,11 @@ Showcase: https://imgur.com/a/rhskc5u
 
 ## Features
 
-- **Editor** — Markdown/text notes with autosave, crash recovery, rename and file browser
-- **Task manager** — add, edit, complete, reorder and clear tasks (persisted)
-- **Weather** — current conditions plus hourly forecast for any city ([Open-Meteo](https://open-meteo.com/), no API key)
+- **Editor** — Markdown/text notes with autosave, crash recovery, rename and file browser;
+  reopens the note you were last writing and shows a live word count
+- **Task manager** — add, edit, complete, reorder, undo and clear tasks (persisted)
+- **Weather** — current conditions, hourly and 3-day forecast for any city
+  ([Open-Meteo](https://open-meteo.com/), no API key, °C or °F)
 - **Pomodoro** — 25/5/15 focus cycles that keep running while you switch screens
 - **Themes & units** — 11 themes with non-destructive preview, °C or °F
 - **Safe by default** — atomic writes, backups, autosave recovery, quit confirmation
@@ -111,11 +113,12 @@ on the next start you are asked whether to restore it.
 | `Space` or `Enter` | Toggle complete |
 | `Shift+↑` / `Shift+↓` | Reorder |
 | `c` | Clear completed |
+| `Ctrl+Z` | Undo the last delete / edit / clear |
 | `Esc` | Back |
 
 ### Weather dialog
 
-`c` change city · `r` refresh · `Enter`/`Esc` close
+`c` change city · `r` refresh · `Enter`/`Esc` close (shows today plus the next days)
 
 ### Pomodoro dialog
 

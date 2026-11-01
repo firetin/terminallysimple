@@ -671,7 +671,8 @@ class EditorScreen(Screen):
 
         self._update_status_with_file()
         self._start_autosave_timer()
-        self._offer_autosave_recovery()
+        if not self._offer_autosave_recovery():
+            self._restore_last_file()
 
     def on_unmount(self) -> None:
         """Persist the buffer while the content is still known."""
@@ -715,16 +716,20 @@ class EditorScreen(Screen):
             return False
         return storage.write_text_atomic(self.autosave_file, text)
 
-    def _offer_autosave_recovery(self) -> None:
-        """Ask the user whether to restore the previous session's buffer."""
+    def _offer_autosave_recovery(self) -> bool:
+        """Ask whether to restore the previous session's buffer.
+
+        Returns ``True`` when the user was prompted (so the last-opened note is
+        not loaded on top of the recovery).
+        """
         snapshot = self.autosave_file
         if not snapshot.exists():
-            return
+            return False
 
         content = storage.read_text(snapshot)
         if not content.strip():
             snapshot.unlink(missing_ok=True)
-            return
+            return False
 
         def handle_recovery(confirmed: bool | None) -> None:
             if confirmed:
@@ -739,6 +744,7 @@ class EditorScreen(Screen):
             ConfirmDialog("Recover the unsaved note from your last session?"),
             handle_recovery,
         )
+        return True
 
     # ------------------------------------------------------------- text events
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
@@ -746,6 +752,25 @@ class EditorScreen(Screen):
         self._cached_text = event.text_area.text
         self.is_modified = self._cached_text != self.original_content
         self._update_status_with_file()
+
+    def _restore_last_file(self) -> None:
+        """Reopen the note that was being edited last time, if it still exists."""
+        last_file = config.get("last_file")
+        if not isinstance(last_file, str) or not last_file:
+            return
+
+        path = Path(last_file)
+        if not path.is_file():
+            return
+
+        content = storage.read_text(path)
+        self._load_content(content, path)
+        self._update_status_with_file()
+
+    def _remember_file(self, file: Path | None) -> None:
+        """Persist which note should be reopened on the next launch."""
+        config.set("last_file", str(file) if file else None)
+        config.save()
 
     def _load_content(self, content: str, file: Path | None) -> None:
         """Put ``content`` in the buffer and reset the modified bookkeeping."""
@@ -830,6 +855,7 @@ class EditorScreen(Screen):
         self.current_file = target
         self.original_content = self._cached_text
         self.is_modified = False
+        self._remember_file(target)
 
         if self.autosave_file.exists():
             self.autosave_file.unlink(missing_ok=True)
@@ -857,6 +883,7 @@ class EditorScreen(Screen):
                 return
 
             self._load_content(content, resolved)
+            self._remember_file(resolved)
             self._update_status_with_file()
 
         self.app.push_screen(FileBrowser(self.documents_dir), handle_file_selection)
@@ -869,6 +896,7 @@ class EditorScreen(Screen):
                 if self.is_modified:
                     self.save_snapshot()
                 self._load_content("", None)
+                self._remember_file(None)
                 self._update_status_with_file()
 
         if self.is_modified:
@@ -923,6 +951,7 @@ class EditorScreen(Screen):
                 return
 
             self.current_file = new_path
+            self._remember_file(new_path)
             self._update_status_with_file()
             logger.info("Renamed %s -> %s", old_path.name, new_path.name)
 
@@ -955,10 +984,11 @@ class EditorScreen(Screen):
             pass
 
     def _update_status_with_file(self) -> None:
-        """Update status with current filename and modified indicator."""
+        """Update status with filename, modified indicator and word count."""
         name = self.current_file.name if self.current_file else "Untitled"
         modified = " [bold red]*[/]" if self.is_modified else ""
-        self._update_status(f"{name}{modified}")
+        words = len(self._cached_text.split())
+        self._update_status(f"{name}{modified}  [dim]({words} words)[/]")
 
 
 # Custom CSS for the editor

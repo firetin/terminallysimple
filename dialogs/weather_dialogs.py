@@ -13,7 +13,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Input, Label, Static
 
 from constants import WidgetIDs
-from utils.weather import CurrentWeather, HourlyForecast
+from utils.weather import CurrentWeather, DailyForecast, HourlyForecast
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +120,7 @@ class WeatherForecastDialog(ModalScreen[str | None]):
         city_name: str,
         current: CurrentWeather | None,
         forecast: list[HourlyForecast],
+        daily: list[DailyForecast] | None = None,
         last_updated: datetime | None = None,
         error: str | None = None,
         **kwargs: Any,
@@ -128,6 +129,7 @@ class WeatherForecastDialog(ModalScreen[str | None]):
         self.city_name = city_name
         self.current = current
         self.forecast = forecast
+        self.daily = daily or []
         self.last_updated = last_updated
         self.error = error
 
@@ -136,6 +138,15 @@ class WeatherForecastDialog(ModalScreen[str | None]):
         with Container(id=WidgetIDs.WEATHER_FORECAST_CONTAINER):
             yield Static("WEATHER FORECAST", id=WidgetIDs.WEATHER_FORECAST_TITLE)
             yield Static(self._summary(), id=WidgetIDs.WEATHER_FORECAST_CURRENT)
+
+            if self.daily:
+                with Vertical(id=WidgetIDs.WEATHER_FORECAST_DAILY):
+                    for day in self.daily:
+                        yield Static(
+                            f"{day.weekday}  {day.icon} {day.temperature_max:.0f}{day.unit}"
+                            f" / {day.temperature_min:.0f}{day.unit}  {day.description}",
+                            classes="forecast-item",
+                        )
 
             with Vertical(id=WidgetIDs.WEATHER_FORECAST_LIST):
                 if self.forecast:
@@ -209,6 +220,14 @@ WeatherForecastDialog {
     color: $accent;
     text-style: bold;
     margin-bottom: 2;
+}
+
+#weather-forecast-daily {
+    height: auto;
+    max-height: 5;
+    overflow-y: auto;
+    padding: 0 1;
+    margin-bottom: 1;
 }
 
 #weather-forecast-list {

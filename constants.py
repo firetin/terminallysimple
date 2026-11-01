@@ -99,6 +99,7 @@ class WidgetIDs:
     WEATHER_FORECAST_TITLE = "weather-forecast-title"
     WEATHER_FORECAST_CURRENT = "weather-forecast-current"
     WEATHER_FORECAST_LIST = "weather-forecast-list"
+    WEATHER_FORECAST_DAILY = "weather-forecast-daily"
     WEATHER_FORECAST_BUTTONS = "weather-forecast-buttons"
     WEATHER_CHANGE_CITY_BTN = "weather-change-city-btn"
     WEATHER_FORECAST_HINT = "weather-forecast-hint"

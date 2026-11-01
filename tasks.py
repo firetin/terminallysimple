@@ -266,6 +266,7 @@ class TaskManagerScreen(NavigableMixin, Screen):
         Binding("e", "edit_task", "Edit", show=True),
         Binding("space", "toggle_task", "Toggle", show=True),
         Binding("c", "clear_completed", "Clear Done", show=True),
+        Binding("ctrl+z", "undo", "Undo", show=True, priority=True),
         Binding("escape", "back", "Back", priority=True),
         Binding("enter", "toggle_task", "Toggle", show=False),
         Binding("down,j", "cursor_down", "Next", show=False),
@@ -280,6 +281,7 @@ class TaskManagerScreen(NavigableMixin, Screen):
         self.tasks: list[Task] = []
         self.next_id: int = 1
         self.focused: Widget | None = None
+        self._undo_stack: list[list[Task]] = []
 
     def compose(self) -> ComposeResult:
         """Create the task manager interface."""
@@ -329,7 +331,27 @@ class TaskManagerScreen(NavigableMixin, Screen):
 
     def _save_tasks(self) -> None:
         """Save tasks to storage."""
-        self.storage.save_tasks(self.tasks)
+        if not self.storage.save_tasks(self.tasks):
+            self.app.notify("Could not save tasks", severity="error", timeout=3)
+
+    # -------------------------------------------------------------------- undo
+    def _push_undo(self) -> None:
+        """Remember the current list so the next destructive action can be undone."""
+        self._undo_stack.append([Task(t.text, t.completed, t.id) for t in self.tasks])
+        del self._undo_stack[:-20]  # keep a bounded history
+
+    def action_undo(self) -> None:
+        """Restore the task list to before the last change."""
+        if not self._undo_stack:
+            self.notify("Nothing to undo", timeout=2)
+            return
+
+        self.tasks = self._undo_stack.pop()
+        if self.tasks:
+            self.next_id = max(t.id for t in self.tasks) + 1
+        self._save_tasks()
+        self._refresh_task_list()
+        self.notify("Undone", timeout=2)
 
     def action_add_task(self) -> None:
         """Add a new task."""
@@ -354,6 +376,7 @@ class TaskManagerScreen(NavigableMixin, Screen):
 
         def handle_confirm(confirmed: bool | None) -> None:
             if confirmed:
+                self._push_undo()
                 self.tasks = [t for t in self.tasks if t.id != task_to_delete.id]
                 self._save_tasks()
                 self._refresh_task_list()
@@ -370,6 +393,7 @@ class TaskManagerScreen(NavigableMixin, Screen):
 
         def handle_task_input(text: str | None) -> None:
             if text:
+                self._push_undo()
                 task_to_edit.text = text
                 self._save_tasks()
                 self._refresh_task_list()
@@ -397,6 +421,7 @@ class TaskManagerScreen(NavigableMixin, Screen):
 
         def handle_confirm(confirmed: bool | None) -> None:
             if confirmed:
+                self._push_undo()
                 self.tasks = [t for t in self.tasks if not t.completed]
                 self._save_tasks()
                 self._refresh_task_list()
