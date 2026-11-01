@@ -30,6 +30,7 @@ class WidgetIDs:
     ITEM_EDITOR = "item-editor"
     ITEM_TASKS = "item-tasks"
     ITEM_SETTINGS = "item-settings"
+    ITEM_HELP = "item-help"
     ITEM_EXIT = "item-exit"
     
     # Editor
@@ -70,12 +71,20 @@ class WidgetIDs:
     CONFIRM_YES = "confirm-yes"
     CONFIRM_NO = "confirm-no"
     
+    # Help
+    HELP_CONTAINER = "help-container"
+    HELP_TITLE = "help-title"
+    HELP_LIST = "help-list"
+    HELP_HINT = "help-hint"
+
     # Settings
     SETTINGS_CONTAINER = "settings-container"
     SETTINGS_TITLE = "settings-title"
     SETTINGS_SUBTITLE = "settings-subtitle"
     SETTINGS_TIP = "settings-tip"
+    SETTINGS_UNITS_TITLE = "settings-units-title"
     THEME_LIST = "theme-list"
+    UNIT_LIST = "unit-list"
     SETTINGS_STATUS = "settings-status"
     
     # Weather
@@ -92,6 +101,7 @@ class WidgetIDs:
     WEATHER_FORECAST_BUTTONS = "weather-forecast-buttons"
     WEATHER_CHANGE_CITY_BTN = "weather-change-city-btn"
     WEATHER_FORECAST_HINT = "weather-forecast-hint"
+    WEATHER_FORECAST_UPDATED = "weather-forecast-updated"
     
     # Pomodoro
     POMODORO_CONTAINER = "pomodoro-container"

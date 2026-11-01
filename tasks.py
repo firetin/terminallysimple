@@ -2,11 +2,13 @@
 Task Manager - Simple to-do list
 """
 
-import json
+from __future__ import annotations
+
 import logging
+import itertools
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any, Optional
 
 from textual.app import ComposeResult
 from textual.screen import Screen, ModalScreen
@@ -17,73 +19,77 @@ from textual.widget import Widget
 
 from base_screen import NavigableMixin
 from constants import FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR, FOCUS_TIMER_DELAY, WidgetIDs
+from utils import paths, storage
 from widgets.system_header import SystemHeader
 
 logger = logging.getLogger(__name__)
 
+# Fallback ids for tasks that were written without one (or hand-edited files).
+_fallback_ids = itertools.count(1)
+
 
 class Task:
     """Represents a single task."""
-    
+
     def __init__(self, text: str, completed: bool = False, task_id: Optional[int] = None) -> None:
         self.text: str = text
         self.completed: bool = completed
-        self.id: int = task_id if task_id is not None else id(self)
+        self.id: int = task_id if task_id is not None else next(_fallback_ids)
         self.created_at: datetime = datetime.now()
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert task to dictionary for storage."""
         return {
             "id": self.id,
             "text": self.text,
             "completed": self.completed,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
-    
+
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'Task':
-        """Create task from dictionary."""
-        task = cls(data["text"], data["completed"], data["id"])
-        try:
-            task.created_at = datetime.fromisoformat(data["created_at"])
-        except (KeyError, ValueError):
-            task.created_at = datetime.now()
+    def from_dict(cls, data: dict[str, Any]) -> "Task":
+        """
+        Create a task from a dictionary.
+
+        Tolerant by design: a missing ``id``/``created_at`` is regenerated
+        rather than raising, so one hand-edited record cannot wipe the list.
+        """
+        text = data["text"]
+        if not isinstance(text, str):
+            raise ValueError("task text must be a string")
+
+        task_id = data.get("id")
+        task = cls(text, bool(data.get("completed", False)), task_id if isinstance(task_id, int) else None)
+
+        created_at = data.get("created_at")
+        if isinstance(created_at, str):
+            try:
+                task.created_at = datetime.fromisoformat(created_at)
+            except ValueError:
+                pass
         return task
 
 
 class TaskStorage:
     """Manages task persistence."""
-    
-    def __init__(self) -> None:
-        self.data_dir: Path = Path.home() / ".config" / "terminallysimple"
-        self.tasks_file: Path = self.data_dir / "tasks.json"
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-    
+
+    def __init__(self, tasks_file: Optional[Path] = None) -> None:
+        self._tasks_file = tasks_file
+
+    @property
+    def tasks_file(self) -> Path:
+        """Location of ``tasks.json`` (resolved lazily for testability)."""
+        return self._tasks_file or paths.data_dir() / "tasks.json"
+
     def load_tasks(self) -> list[Task]:
-        """Load tasks from file."""
-        if not self.tasks_file.exists():
-            return []
-        
-        try:
-            with open(self.tasks_file, 'r') as f:
-                data = json.load(f)
-                return [Task.from_dict(t) for t in data]
-        except (json.JSONDecodeError, KeyError) as e:
-            logger.error(f"Error loading tasks: {e}")
-            return []
-        except (OSError, IOError) as e:
-            logger.error(f"Could not read tasks file: {e}")
-            return []
-    
+        """Load tasks from file, skipping (never discarding) bad entries."""
+        storage.migrate_file(paths.legacy_config_dir() / "tasks.json", self.tasks_file)
+        return storage.load_json_records(self.tasks_file, Task.from_dict)
+
     def save_tasks(self, tasks: list[Task]) -> bool:
-        """Save tasks to file."""
-        try:
-            with open(self.tasks_file, 'w') as f:
-                json.dump([t.to_dict() for t in tasks], f, indent=2)
-            return True
-        except (OSError, IOError) as e:
-            logger.error(f"Could not save tasks: {e}")
-            return False
+        """Atomically save tasks to file."""
+        return storage.save_json_atomic(self.tasks_file, [t.to_dict() for t in tasks])
+
 
 
 class TaskInput(ModalScreen[Optional[str]]):

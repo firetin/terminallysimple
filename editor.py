@@ -2,6 +2,8 @@
 Text/Markdown Editor - Distraction-free writing
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import platform
@@ -11,6 +13,7 @@ from pathlib import Path
 from typing import Optional, Any
 
 from textual.app import ComposeResult
+from textual.css.query import NoMatches
 from textual.events import Click
 from textual.screen import Screen, ModalScreen
 from textual.widgets import Footer, TextArea, Static, Button, Input, Label
@@ -20,10 +23,17 @@ from textual.widget import Widget
 from textual.timer import Timer
 
 from base_screen import NavigableMixin
+from config import config
 from constants import (
-    FOCUS_INDICATOR, FOCUS_COLOR, DIM_COLOR,
-    TAB_SPACES, FOCUS_TIMER_DELAY, WidgetIDs
+    AUTOSAVE_INTERVAL,
+    FOCUS_INDICATOR,
+    FOCUS_COLOR,
+    DIM_COLOR,
+    TAB_SPACES,
+    FOCUS_TIMER_DELAY,
+    WidgetIDs,
 )
+from utils import paths, storage
 from utils.validators import sanitize_filename
 from widgets.system_header import SystemHeader
 
@@ -576,7 +586,7 @@ FileItem:focus-within {
 
 class EditorScreen(Screen):
     """A minimalist text editor for distraction-free writing."""
-    
+
     BINDINGS = [
         Binding("ctrl+s", "save", "Save", priority=True),
         Binding("ctrl+o", "open", "Open", priority=True),
@@ -588,362 +598,348 @@ class EditorScreen(Screen):
         Binding("escape", "back", "Back", priority=True),
         Binding("tab", "insert_tab", "Tab", show=False, priority=True),
     ]
-    
+
     def __init__(self) -> None:
         super().__init__()
         self.current_file: Optional[Path] = None
         self.is_modified: bool = False  # Track if content has been modified
         self.original_content: str = ""  # Store original content for comparison
         self.autosave_timer: Optional[Timer] = None  # Timer for autosaving
-        self.autosave_enabled: bool = True  # Enable/disable autosave
-        from constants import AUTOSAVE_INTERVAL
-        self.autosave_interval: float = AUTOSAVE_INTERVAL
-        # Save to app directory instead of Documents
-        self.documents_dir: Path = Path(__file__).parent / "notes"
-        self.documents_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Autosave directory for unnamed documents
-        self.autosave_dir: Path = self.documents_dir / ".autosave"
-        self.autosave_dir.mkdir(parents=True, exist_ok=True)
-    
+        self.autosave_enabled: bool = True
+        self.autosave_interval: float = float(config.get("autosave_interval", AUTOSAVE_INTERVAL))
+
+        # Notes and snapshots live in the user's documents/data folders, never
+        # inside the installed package.
+        configured_dir = config.get("notes_dir")
+        if configured_dir:
+            self.documents_dir: Path = Path(configured_dir).expanduser()
+        else:
+            self.documents_dir = paths.notes_dir()
+        self.autosave_dir: Path = paths.data_dir() / "autosave"
+        self._ensure_directories()
+
+        # Cache of the buffer, so snapshots keep working after the DOM is gone
+        # (Textual detaches widgets before dispatching ``on_unmount``).
+        self._text_area: Optional[TextArea] = None
+        self._cached_text: str = ""
+
+    # ------------------------------------------------------------------ setup
+    def _ensure_directories(self) -> None:
+        if not config.get("notes_dir"):
+            paths.migrate_legacy_notes(self.documents_dir)
+        for directory in (self.documents_dir, self.autosave_dir):
+            try:
+                paths.ensure_dir(directory)
+            except OSError as e:
+                logger.error("Could not create %s: %s", directory, e)
+
+    @property
+    def autosave_file(self) -> Path:
+        """Snapshot file for a document that has not been named yet."""
+        return self.autosave_dir / "untitled-autosave.md"
+
     def compose(self) -> ComposeResult:
         """Create the editor interface."""
         yield SystemHeader(show_clock=True)
         yield Container(
             Static("", id=WidgetIDs.EDITOR_STATUS),
             TextArea(id=WidgetIDs.TEXT_AREA, show_line_numbers=True),
-            id=WidgetIDs.EDITOR_CONTAINER
+            id=WidgetIDs.EDITOR_CONTAINER,
         )
         yield Footer()
-    
+
     def on_mount(self) -> None:
         """Initialize the editor when mounted."""
-        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        text_area.focus()
-        
-        # Check for autosaved content and offer to restore
-        self._check_autosave_recovery()
-        
+        self._text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+        self._text_area.focus()
+        self._cached_text = self._text_area.text
+
         self._update_status_with_file()
-        
-        # Start autosave timer
         self._start_autosave_timer()
-    
+        self._offer_autosave_recovery()
+
     def on_unmount(self) -> None:
-        """Clean up when screen is unmounted."""
-        # Perform final autosave before unmounting (always try to save)
-        try:
-            self._autosave()
-        except Exception as e:
-            logger.error(f"Failed to autosave on unmount: {e}")
-        
-        # Stop autosave timer
+        """Persist the buffer while the content is still known."""
+        self.save_snapshot()
         if self.autosave_timer:
             self.autosave_timer.stop()
-    
-    def _check_autosave_recovery(self) -> None:
-        """Check if there's an autosaved file and offer to recover it."""
-        autosave_file = self.autosave_dir / "untitled-autosave.md"
-        if autosave_file.exists():
-            try:
-                content = autosave_file.read_text()
-                if content.strip():  # Only recover if there's actual content
-                    text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-                    text_area.load_text(content)
-                    self.is_modified = True
-                    self.original_content = ""
-                    logger.info("Recovered autosaved content")
-                    # Don't delete yet - keep it until user explicitly saves with a name
-            except Exception as e:
-                logger.error(f"Failed to recover autosave: {e}")
-    
+            self.autosave_timer = None
+
+    def on_screen_suspend(self) -> None:
+        """Save when another screen (e.g. a dialog) is pushed on top."""
+        self.save_snapshot()
+
+    # --------------------------------------------------------------- autosave
     def _start_autosave_timer(self) -> None:
-        """Start the autosave timer."""
-        if self.autosave_enabled:
-            self.autosave_timer = self.set_interval(
-                self.autosave_interval, 
-                self._autosave
-            )
-    
+        if self.autosave_enabled and self.autosave_interval > 0:
+            self.autosave_timer = self.set_interval(self.autosave_interval, self._autosave)
+
     def _autosave(self) -> None:
-        """Autosave the current document if there are changes."""
+        """Timer callback: snapshot the buffer if it has content."""
+        if self.save_snapshot() and self.current_file:
+            self.is_modified = False
+
+    def save_snapshot(self) -> bool:
+        """
+        Persist the current buffer without touching the widget tree.
+
+        Safe to call from ``on_unmount``/``on_shutdown`` and therefore the
+        reason unsaved work can no longer be lost when the app quits.
+        """
+        text = self._cached_text
+        if not text.strip():
+            return False
+
+        if self.current_file:
+            return storage.write_text_atomic(self.current_file, text)
+
         try:
-            text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        except (LookupError, ValueError) as e:
-            # Text area not accessible (e.g., modal is open), skip autosave
-            logger.debug(f"Autosave skipped: text area not accessible")
+            paths.ensure_dir(self.autosave_dir)
+        except OSError as e:
+            logger.error("Could not create autosave directory: %s", e)
+            return False
+        return storage.write_text_atomic(self.autosave_file, text)
+
+    def _offer_autosave_recovery(self) -> None:
+        """Ask the user whether to restore the previous session's buffer."""
+        snapshot = self.autosave_file
+        if not snapshot.exists():
             return
-            
-        content = text_area.text
-        
-        # Only save if there's actual content
+
+        content = storage.read_text(snapshot)
         if not content.strip():
-            logger.debug("Autosave skipped: no content")
-            return  # Nothing to save
-        
-        try:
-            if self.current_file:
-                # Save to existing file
-                self.current_file.write_text(content)
-                self.is_modified = False
-                self.original_content = content
-                logger.debug(f"Autosaved to {self.current_file.name}")
-                # Don't update status bar during autosave to avoid flickering
+            snapshot.unlink(missing_ok=True)
+            return
+
+        def handle_recovery(confirmed: Optional[bool]) -> None:
+            if confirmed:
+                self._load_content(content, self.current_file)
+                self.is_modified = True
+                self._update_status_with_file()
+                self.notify("Recovered unsaved note", timeout=3)
             else:
-                # Save unnamed document to autosave directory
-                autosave_file = self.autosave_dir / "untitled-autosave.md"
-                autosave_file.write_text(content)
-                logger.debug(f"Autosaved untitled document ({len(content)} chars)")
-                # Don't reset is_modified for unnamed docs - they still need a proper name
-        except (OSError, IOError) as e:
-            logger.error(f"Autosave failed: {e}")
-    
-    def on_text_area_changed(self, event) -> None:
-        """Handle TextArea content changes."""
-        # Mark as modified whenever text changes
-        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        current_text = text_area.text
-        self.is_modified = (current_text != self.original_content)
+                snapshot.unlink(missing_ok=True)
+
+        self.app.push_screen(
+            ConfirmDialog("Recover the unsaved note from your last session?"),
+            handle_recovery,
+        )
+
+    # ------------------------------------------------------------- text events
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        """Track the buffer and modification state."""
+        self._cached_text = event.text_area.text
+        self.is_modified = self._cached_text != self.original_content
         self._update_status_with_file()
-    
+
+    def _load_content(self, content: str, file: Optional[Path]) -> None:
+        """Put ``content`` in the buffer and reset the modified bookkeeping."""
+        self._cached_text = content
+        self.original_content = content
+        self.current_file = file
+        self.is_modified = False
+        if self._text_area is not None:
+            self._text_area.load_text(content)
+
+    # ------------------------------------------------------------------ actions
     def action_insert_tab(self) -> None:
         """Insert a tab character."""
-        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        text_area.insert(TAB_SPACES)
-    
+        self._require_text_area().insert(TAB_SPACES)
+
     def action_select_all(self) -> None:
         """Select all text in the editor."""
-        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        text_area.select_all()
-    
+        self._require_text_area().select_all()
+
     def action_undo(self) -> None:
         """Undo the last change in the editor."""
-        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        text_area.undo()
-    
+        self._require_text_area().undo()
+
     def action_redo(self) -> None:
         """Redo the last undone change in the editor."""
-        text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-        text_area.redo()
-    
+        self._require_text_area().redo()
+
+    def _require_text_area(self) -> TextArea:
+        if self._text_area is None:
+            self._text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
+        return self._text_area
+
     def action_save(self) -> None:
         """Save the current document."""
+        if self.current_file is not None:
+            self._write_document(self.current_file)
+            return
+
         def handle_filename(filename: Optional[str]) -> None:
             if filename:
-                text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-                content = text_area.text
-                
-                try:
-                    # Sanitize the filename first
-                    safe_filename = sanitize_filename(filename)
-                    
-                    # Strip any existing extension and add .md
-                    name_without_ext = safe_filename.rsplit('.', 1)[0] if '.' in safe_filename else safe_filename
-                    safe_filename = f"{name_without_ext}.md"
-                    
-                    # Verify the final path is within the documents directory
-                    self.current_file = self.documents_dir / safe_filename
-                    
-                    # Double-check the resolved path is still within documents_dir
-                    try:
-                        self.current_file.resolve().relative_to(self.documents_dir.resolve())
-                    except ValueError:
-                        self._update_status("Error: Invalid file path")
-                        return
-                    
-                    self.current_file.write_text(content)
-                    self.is_modified = False  # Reset modified flag
-                    self.original_content = content  # Update original content
-                    
-                    # Delete autosave file since we now have a proper named file
-                    autosave_file = self.autosave_dir / "untitled-autosave.md"
-                    if autosave_file.exists():
-                        autosave_file.unlink()
-                        logger.info("Deleted autosave file after saving with name")
-                    
-                    self._update_status_with_file()
-                except ValueError as e:
-                    # Validation error from sanitize_filename
-                    self._update_status(f"Invalid filename: {e}")
-                except (OSError, IOError) as e:
-                    self._update_status(f"Error saving file: {e}")
-                except Exception as e:
-                    self._update_status(f"Unexpected error: {e}")
-        
-        # If file already has a name, just save it
-        if self.current_file is not None:
-            text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-            content = text_area.text
-            try:
-                self.current_file.write_text(content)
-                self.is_modified = False  # Reset modified flag
-                self.original_content = content  # Update original content
-                self._update_status_with_file()
-            except (OSError, IOError) as e:
-                self._update_status(f"Error saving file: {e}")
-            except Exception as e:
-                self._update_status(f"Unexpected error: {e}")
-        else:
-            # Prompt for filename
-            self.app.push_screen(FilenamePrompt(), handle_filename)
-    
+                self._save_as(filename)
+
+        self.app.push_screen(FilenamePrompt(), handle_filename)
+
+    def _save_as(self, filename: str) -> None:
+        """Resolve a user-supplied filename and save, confirming overwrites."""
+        try:
+            safe_filename = sanitize_filename(filename)
+        except ValueError as e:
+            self._update_status(f"Invalid filename: {e}")
+            return
+
+        stem = safe_filename.rsplit(".", 1)[0] if "." in safe_filename else safe_filename
+        target = self.documents_dir / f"{stem}.md"
+
+        try:
+            target.resolve().relative_to(self.documents_dir.resolve())
+        except ValueError:
+            self._update_status("Error: Invalid file path")
+            return
+
+        if target.exists() and target != self.current_file:
+            def handle_overwrite(confirmed: Optional[bool]) -> None:
+                if confirmed:
+                    self._write_document(target)
+
+            self.app.push_screen(
+                ConfirmDialog(f"'{target.name}' already exists. Overwrite it?"),
+                handle_overwrite,
+            )
+            return
+
+        self._write_document(target)
+
+    def _write_document(self, target: Path) -> None:
+        """Write the buffer to ``target`` atomically and update the UI."""
+        if not storage.write_text_atomic(target, self._cached_text):
+            self._update_status(f"Error saving file: {target.name}")
+            return
+
+        self.current_file = target
+        self.original_content = self._cached_text
+        self.is_modified = False
+
+        if self.autosave_file.exists():
+            self.autosave_file.unlink(missing_ok=True)
+
+        self._update_status_with_file()
+        logger.info("Saved %s", target)
+
     def action_open(self) -> None:
-        """Open a file from the documents directory."""
+        """Open a file from the notes directory."""
         def handle_file_selection(selected_file: Optional[Path]) -> None:
-            if selected_file:
-                try:
-                    # Verify the selected file is within the documents directory
-                    resolved_file = selected_file.resolve()
-                    try:
-                        resolved_file.relative_to(self.documents_dir.resolve())
-                    except ValueError:
-                        self._update_status("Error: Invalid file path")
-                        return
-                    
-                    # Check file still exists before reading
-                    if not resolved_file.exists():
-                        self._update_status("Error: File no longer exists")
-                        return
-                    
-                    self.current_file = resolved_file
-                    content = self.current_file.read_text()
-                    text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-                    text_area.load_text(content)
-                    self.is_modified = False  # Reset modified flag
-                    self.original_content = content  # Store original content
-                    self._update_status_with_file()
-                except FileNotFoundError:
-                    self._update_status(f"Error: File not found")
-                except (OSError, IOError) as e:
-                    self._update_status(f"Error reading file: {e}")
-                except UnicodeDecodeError:
-                    self._update_status(f"Error: File is not valid text")
-                except Exception as e:
-                    self._update_status(f"Unexpected error: {e}")
-        
+            if not selected_file:
+                return
+
+            resolved = selected_file.resolve()
+            try:
+                resolved.relative_to(self.documents_dir.resolve())
+            except ValueError:
+                self._update_status("Error: Invalid file path")
+                return
+
+            content = storage.read_text(resolved)
+            if content == "" and not resolved.exists():
+                self._update_status("Error: File no longer exists")
+                return
+
+            self._load_content(content, resolved)
+            self._update_status_with_file()
+
         self.app.push_screen(FileBrowser(self.documents_dir), handle_file_selection)
-    
+
     def action_new(self) -> None:
         """Create a new document."""
         def confirm_new(confirmed: Optional[bool]) -> None:
             if confirmed:
-                text_area = self.query_one(f"#{WidgetIDs.TEXT_AREA}", TextArea)
-                text_area.clear()
-                self.current_file = None
-                self.is_modified = False
-                self.original_content = ""
+                if self.is_modified:
+                    self.save_snapshot()
+                self._load_content("", None)
                 self._update_status_with_file()
-        
-        # Check if there are unsaved changes
+
         if self.is_modified:
             self.app.push_screen(
-                ConfirmDialog("You have unsaved changes. Create new document anyway?"),
-                confirm_new
+                ConfirmDialog("You have unsaved changes. Create a new document anyway?"),
+                confirm_new,
             )
         else:
             confirm_new(True)
-    
+
     def action_rename(self) -> None:
         """Rename the current file."""
-        # Can only rename if there's a current file
         if not self.current_file:
             self._update_status("Cannot rename: No file is currently open")
             return
-        
-        def handle_rename(new_filename: Optional[str]) -> None:
-            if new_filename:
-                try:
-                    # Sanitize the new filename
-                    safe_filename = sanitize_filename(new_filename)
-                    
-                    # Get the original extension
-                    original_ext = self.current_file.suffix if self.current_file else '.md'
-                    
-                    # Strip any extension from the input and add the original extension
-                    name_without_ext = safe_filename.rsplit('.', 1)[0] if '.' in safe_filename else safe_filename
-                    safe_filename = f"{name_without_ext}{original_ext}"
-                    
-                    # Create the new file path
-                    new_file_path = self.documents_dir / safe_filename
-                    
-                    # Double-check the resolved path is still within documents_dir
-                    try:
-                        new_file_path.resolve().relative_to(self.documents_dir.resolve())
-                    except ValueError:
-                        self._update_status("Error: Invalid file path")
-                        return
-                    
-                    # Check if the new filename already exists (and it's not the same file)
-                    if new_file_path.exists() and new_file_path != self.current_file:
-                        self._update_status(f"Error: File '{safe_filename}' already exists")
-                        return
-                    
-                    # If the name hasn't changed, just return
-                    if new_file_path == self.current_file:
-                        self._update_status("File name unchanged")
-                        return
-                    
-                    # Store old file path
-                    old_file_path = self.current_file
-                    
-                    # Rename the file
-                    old_file_path.rename(new_file_path)
-                    
-                    # Update current file reference
-                    self.current_file = new_file_path
-                    
-                    # Update status
-                    self._update_status_with_file()
-                    logger.info(f"Renamed file from {old_file_path.name} to {new_file_path.name}")
-                    
-                except ValueError as e:
-                    # Validation error from sanitize_filename
-                    self._update_status(f"Invalid filename: {e}")
-                except FileNotFoundError:
-                    self._update_status("Error: Original file not found")
-                except (OSError, IOError) as e:
-                    self._update_status(f"Error renaming file: {e}")
-                except Exception as e:
-                    self._update_status(f"Unexpected error: {e}")
-                    logger.error(f"Error renaming file: {e}")
-        
-        # Show rename prompt with current filename
-        current_name = self.current_file.name
-        self.app.push_screen(RenamePrompt(current_name), handle_rename)
-    
+
+        def handle_rename(filename: Optional[str]) -> None:
+            if not filename or self.current_file is None:
+                return
+
+            try:
+                safe_filename = sanitize_filename(filename)
+            except ValueError as e:
+                self._update_status(f"Invalid filename: {e}")
+                return
+
+            stem = safe_filename.rsplit(".", 1)[0] if "." in safe_filename else safe_filename
+            new_path = self.documents_dir / f"{stem}.md"
+
+            try:
+                new_path.resolve().relative_to(self.documents_dir.resolve())
+            except ValueError:
+                self._update_status("Error: Invalid file path")
+                return
+
+            if new_path == self.current_file:
+                self._update_status("File name unchanged")
+                return
+
+            if new_path.exists():
+                self._update_status(f"Error: File '{new_path.name}' already exists")
+                return
+
+            old_path = self.current_file
+            try:
+                old_path.rename(new_path)
+            except FileNotFoundError:
+                self._update_status("Error: Original file not found")
+                return
+            except OSError as e:
+                self._update_status(f"Error renaming file: {e}")
+                return
+
+            self.current_file = new_path
+            self._update_status_with_file()
+            logger.info("Renamed %s -> %s", old_path.name, new_path.name)
+
+        self.app.push_screen(RenamePrompt(self.current_file.name), handle_rename)
+
     def action_back(self) -> None:
         """Return to the main menu."""
         def confirm_back(confirmed: Optional[bool]) -> None:
             if confirmed:
                 self.app.pop_screen()
-        
-        # Check if there are unsaved changes
+
         if self.is_modified:
+            self.save_snapshot()
             self.app.push_screen(
-                ConfirmDialog("You have unsaved changes. Exit anyway?"),
-                confirm_back
+                ConfirmDialog("You have unsaved changes. Leave the editor anyway?"),
+                confirm_back,
             )
         else:
             self.app.pop_screen()
-    
+
+    # -------------------------------------------------------------------- status
     def _update_status(self, message: str) -> None:
         """Update the status message."""
         try:
             status = self.query_one(f"#{WidgetIDs.EDITOR_STATUS}", Static)
             status.update(f"  {message}")
-        except Exception:
-            # Status widget not found (e.g., modal is open)
+        except NoMatches:
+            # Status widget not available (e.g. during teardown)
             pass
-    
+
     def _update_status_with_file(self) -> None:
         """Update status with current filename and modified indicator."""
-        if self.current_file:
-            filename = self.current_file.name
-            modified_indicator = " [bold red]*[/]" if self.is_modified else ""
-            self._update_status(f"{filename}{modified_indicator}")
-        else:
-            modified_indicator = " [bold red]*[/]" if self.is_modified else ""
-            self._update_status(f"Untitled{modified_indicator}")
+        name = self.current_file.name if self.current_file else "Untitled"
+        modified = " [bold red]*[/]" if self.is_modified else ""
+        self._update_status(f"{name}{modified}")
 
 
 # Custom CSS for the editor
