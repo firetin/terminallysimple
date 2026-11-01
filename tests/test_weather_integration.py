@@ -39,6 +39,9 @@ async def test_real_forecast_starts_at_the_citys_local_hour(tmp_path: Path) -> N
     assert service.current is not None
     assert service.forecast, "expected a non-empty hourly forecast"
 
+    assert service.daily, "expected a daily forecast"
+    assert service.daily[0].temperature_max >= service.daily[0].temperature_min
+
     city_hour = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%H:%M")
     assert _hours_apart(service.forecast[0].time, city_hour) <= 1, (
         f"forecast starts at {service.forecast[0].time} but Tokyo time is {city_hour}"
