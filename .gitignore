@@ -3,12 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-# Autosave files
-notes/.autosave/
-
-# Internal development docs (keep in docs/ but don't track changes)
-docs/
-REVIEW_AND_RECOMMENDATIONS.md
+# User notes live in the platform documents folder now. The in-repo folder is
+# only kept as a migration source and must never be committed.
+notes/
 
 # C extensions
 *.so

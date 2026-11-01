@@ -1,41 +1,49 @@
-"""
-Weather-related dialog screens
-"""
+"""Weather-related dialog screens."""
+
+from __future__ import annotations
 
 import logging
-from typing import Optional, Callable, Any
+from datetime import datetime
+from typing import Any
 
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, Vertical
-from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label, Static
 from textual.binding import Binding
+from textual.containers import Container, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Input, Label, Static
 
 from constants import WidgetIDs
+from utils.weather import CurrentWeather, DailyForecast, HourlyForecast
 
 logger = logging.getLogger(__name__)
 
+#: Values returned by :class:`WeatherForecastDialog`.
+ACTION_CHANGE_CITY = "change_city"
+ACTION_REFRESH = "refresh"
 
-class CityInputDialog(ModalScreen[Optional[str]]):
+
+class CityInputDialog(ModalScreen[str | None]):
     """Modal dialog for entering a city name for weather setup."""
-    
+
     BINDINGS = [
-        Binding("escape", "dismiss", "Cancel", priority=True),
+        Binding("escape", "cancel", "Cancel", priority=True),
     ]
-    
+
     def compose(self) -> ComposeResult:
         """Create the city input dialog interface."""
         with Container(id=WidgetIDs.WEATHER_CITY_CONTAINER):
             yield Static("WEATHER SETUP", id=WidgetIDs.WEATHER_CITY_TITLE)
             yield Label("Enter your city name:", id=WidgetIDs.WEATHER_CITY_LABEL)
-            yield Input(placeholder="e.g., London, New York, Tokyo", id=WidgetIDs.WEATHER_CITY_INPUT)
+            yield Input(
+                placeholder="e.g., London, New York, Tokyo", id=WidgetIDs.WEATHER_CITY_INPUT
+            )
             yield Static("Press Enter to search, Escape to cancel", id=WidgetIDs.WEATHER_CITY_HINT)
             yield Static("", id=WidgetIDs.WEATHER_CITY_ERROR)
-    
+
     def on_mount(self) -> None:
         """Focus the input when mounted."""
-        self.query_one(f"#{WidgetIDs.WEATHER_CITY_INPUT}").focus()
-    
+        self.query_one(f"#{WidgetIDs.WEATHER_CITY_INPUT}", Input).focus()
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle Enter key in input."""
         city_name = event.value.strip()
@@ -43,13 +51,12 @@ class CityInputDialog(ModalScreen[Optional[str]]):
             self.dismiss(city_name)
         else:
             self.show_error("Please enter a city name")
-    
+
     def show_error(self, message: str) -> None:
         """Show error message."""
-        error_widget = self.query_one(f"#{WidgetIDs.WEATHER_CITY_ERROR}", Static)
-        error_widget.update(f"[red]{message}[/]")
-    
-    def action_dismiss(self) -> None:
+        self.query_one(f"#{WidgetIDs.WEATHER_CITY_ERROR}", Static).update(f"[red]{message}[/]")
+
+    def action_cancel(self) -> None:
         """Cancel city input."""
         self.dismiss(None)
 
@@ -98,69 +105,93 @@ CityInputDialog {
 """
 
 
-class WeatherForecastDialog(ModalScreen[None]):
-    """Modal dialog showing detailed weather forecast."""
-    
+class WeatherForecastDialog(ModalScreen[str | None]):
+    """Modal dialog showing the current conditions and hourly forecast."""
+
     BINDINGS = [
         Binding("escape", "dismiss", "Close", priority=True),
         Binding("enter", "dismiss", "Close", priority=True),
         Binding("c", "change_city", "Change City", show=True),
         Binding("r", "refresh", "Refresh", show=True),
     ]
-    
-    def __init__(self, city_name: str, current_temp: float, current_icon: str, 
-                 forecast: list[dict[str, Any]], on_change_city: Optional[Callable[[], None]] = None, 
-                 on_refresh: Optional[Callable[[], None]] = None, **kwargs: Any) -> None:
+
+    def __init__(
+        self,
+        city_name: str,
+        current: CurrentWeather | None,
+        forecast: list[HourlyForecast],
+        daily: list[DailyForecast] | None = None,
+        last_updated: datetime | None = None,
+        error: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
-        self.city_name: str = city_name
-        self.current_temp: float = current_temp
-        self.current_icon: str = current_icon
-        self.forecast: list[dict[str, Any]] = forecast
-        self.on_change_city: Optional[Callable[[], None]] = on_change_city
-        self.on_refresh: Optional[Callable[[], None]] = on_refresh
-    
+        self.city_name = city_name
+        self.current = current
+        self.forecast = forecast
+        self.daily = daily or []
+        self.last_updated = last_updated
+        self.error = error
+
     def compose(self) -> ComposeResult:
         """Create the forecast dialog interface."""
         with Container(id=WidgetIDs.WEATHER_FORECAST_CONTAINER):
             yield Static("WEATHER FORECAST", id=WidgetIDs.WEATHER_FORECAST_TITLE)
-            yield Static(
-                f"{self.city_name} - {self.current_icon} {self.current_temp:.0f}°C",
-                id=WidgetIDs.WEATHER_FORECAST_CURRENT
-            )
-            
+            yield Static(self._summary(), id=WidgetIDs.WEATHER_FORECAST_CURRENT)
+
+            if self.daily:
+                with Vertical(id=WidgetIDs.WEATHER_FORECAST_DAILY):
+                    for day in self.daily:
+                        yield Static(
+                            f"{day.weekday}  {day.icon} {day.temperature_max:.0f}{day.unit}"
+                            f" / {day.temperature_min:.0f}{day.unit}  {day.description}",
+                            classes="forecast-item",
+                        )
+
             with Vertical(id=WidgetIDs.WEATHER_FORECAST_LIST):
                 if self.forecast:
-                    # Show forecast (every 4 hours)
-                    for hour in self.forecast:
-                        time_str = hour["time"]
-                        temp = hour["temperature"]
-                        icon = hour["icon"]
-                        desc = hour["description"]
-                        
+                    for entry in self.forecast:
                         yield Static(
-                            f"{time_str}  {icon} {temp:.0f}°C  {desc}",
-                            classes="forecast-item"
+                            f"{entry.time}  {entry.icon} {entry.temperature:.0f}{entry.unit}"
+                            f"  {entry.description}",
+                            classes="forecast-item",
                         )
                 else:
                     yield Static("No forecast data available", classes="forecast-item")
-            
-            yield Static("Press 'c' to change city, 'r' to refresh, Enter or Escape to close", id=WidgetIDs.WEATHER_FORECAST_HINT)
-    
-    def action_dismiss(self) -> None:
+
+            if self.last_updated is not None:
+                yield Static(
+                    f"Updated {self.last_updated.strftime('%H:%M')}",
+                    id=WidgetIDs.WEATHER_FORECAST_UPDATED,
+                )
+            yield Static(
+                "Press 'c' to change city, 'r' to refresh, Enter or Escape to close",
+                id=WidgetIDs.WEATHER_FORECAST_HINT,
+            )
+
+    def _summary(self) -> str:
+        if self.error and self.current is None:
+            return f"[yellow]{self.error}[/]"
+        if self.current is None:
+            return "No weather data"
+
+        current = self.current
+        return (
+            f"{self.city_name} - {current.icon} {current.temperature:.0f}{current.unit}"
+            f"  [dim]{current.description}[/]"
+        )
+
+    async def action_dismiss(self, result: str | None = None) -> None:
         """Close the forecast dialog."""
-        self.dismiss()
-    
+        self.dismiss(None)
+
     def action_change_city(self) -> None:
-        """Handle change city action."""
-        self.dismiss()  # Close forecast dialog
-        if self.on_change_city:
-            self.on_change_city()  # Trigger city input dialog
-    
+        """Ask the app to show the city input dialog."""
+        self.dismiss(ACTION_CHANGE_CITY)
+
     def action_refresh(self) -> None:
-        """Handle refresh action."""
-        self.dismiss()  # Close forecast dialog
-        if self.on_refresh:
-            self.on_refresh()  # Trigger refresh and reopen
+        """Ask the app to refresh the data."""
+        self.dismiss(ACTION_REFRESH)
 
 
 WeatherForecastDialog.CSS = """
@@ -191,6 +222,14 @@ WeatherForecastDialog {
     margin-bottom: 2;
 }
 
+#weather-forecast-daily {
+    height: auto;
+    max-height: 5;
+    overflow-y: auto;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
 #weather-forecast-list {
     height: auto;
     max-height: 30;
@@ -204,9 +243,15 @@ WeatherForecastDialog {
     height: auto;
 }
 
+#weather-forecast-updated {
+    text-align: center;
+    color: $text-muted;
+    margin-top: 1;
+}
+
 #weather-forecast-hint {
     text-align: center;
     color: $text-muted;
-    margin-top: 2;
+    margin-top: 1;
 }
 """

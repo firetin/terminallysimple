@@ -1,89 +1,85 @@
 [build-system]
-requires = ["setuptools>=65.0", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "terminallysimple"
-version = "0.1.0"
+version = "0.2.0"
 description = "One terminal app. All your essential tools. Zero distractions."
 readme = "README.md"
-license = {file = "LICENSE"}
-authors = [
-    {name = "firetin", email = "porttek0@gmail.com"}
-]
-maintainers = [
-    {name = "firetin", email = "porttek0@gmail.com"}
-]
-keywords = ["terminal", "tui", "textual", "editor", "productivity", "minimalist"]
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "firetin", email = "porttek0@gmail.com" }]
+maintainers = [{ name = "firetin", email = "porttek0@gmail.com" }]
+keywords = ["terminal", "tui", "textual", "editor", "tasks", "pomodoro", "productivity"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Text Editors",
     "Topic :: Utilities",
     "Typing :: Typed",
 ]
-requires-python = ">=3.8"
 dependencies = [
-    "textual>=0.41.0",
-    "psutil>=5.9.0",
-    "httpx>=0.24.0",
+    "textual>=0.86,<9",
+    "httpx>=0.27,<1",
+    "psutil>=5.9",
+    "platformdirs>=4.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-textual>=0.1.0",
-    "black>=23.0.0",
-    "mypy>=1.5.0",
-    "ruff>=0.1.0",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pre-commit>=3.7",
 ]
 
 [project.urls]
 Homepage = "https://github.com/firetin/terminallysimple"
 Repository = "https://github.com/firetin/terminallysimple"
 Issues = "https://github.com/firetin/terminallysimple/issues"
+Changelog = "https://github.com/firetin/terminallysimple/blob/main/CHANGELOG.md"
 
 [project.scripts]
 terminallysimple = "app:main"
 
 [tool.setuptools]
-packages = ["."]
-py-modules = ["app", "config", "constants", "editor", "settings"]
+packages = ["utils", "widgets", "dialogs"]
+py-modules = [
+    "app",
+    "base_screen",
+    "config",
+    "constants",
+    "editor",
+    "services",
+    "settings",
+    "tasks",
+]
+
+[tool.setuptools.package-data]
+widgets = ["*.tcss"]
+dialogs = ["*.tcss"]
 
 [tool.black]
 line-length = 100
-target-version = ["py38", "py39", "py310", "py311", "py312"]
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-  | __pycache__
-  | notes
-)/
-'''
+target-version = ["py310", "py311", "py312", "py313"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py38"
+target-version = "py310"
+extend-exclude = [".venv", "build", "dist", "notes"]
 
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -92,48 +88,36 @@ select = [
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
-    "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
 ]
-
 ignore = [
-    "E501",  # line too long (handled by black)
-    "B008",  # do not perform function calls in argument defaults
-    "B904",  # allow raising exceptions without from
+    "E501", # line length is handled by the formatter
+    "B008", # function calls in argument defaults (Textual patterns)
 ]
 
-exclude = [
-    ".git",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".venv",
-    "__pycache__",
-    "build",
-    "dist",
-    "notes",
-]
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["S101"]
 
-[tool.ruff.per-file-ignores]
-"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false  # Set to true once type hints are added
-disallow_incomplete_defs = false  # Set to true once type hints are added
 check_untyped_defs = true
-disallow_untyped_decorators = false
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
-warn_unreachable = true
 strict_equality = true
 pretty = true
+files = ["."]
+exclude = "(?x)(^build/|^dist/|^[.]venv/|^tests/)"
 
 [[tool.mypy.overrides]]
-module = "textual.*"
+module = ["textual.*", "psutil"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -142,34 +126,26 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--showlocals",
-    "-ra",
-]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = ["--strict-markers", "--strict-config", "-ra"]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "slow: marks tests as slow",
     "integration: marks tests as integration tests",
 ]
 
 [tool.coverage.run]
 source = ["."]
-omit = [
-    "tests/*",
-    ".venv/*",
-    "notes/*",
-]
+omit = ["tests/*", ".venv/*", "setup.py"]
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
     "if __name__ == .__main__.:",
-    "raise AssertionError",
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
-    "@abstractmethod",
 ]
 precision = 2
 show_missing = true

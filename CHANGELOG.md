@@ -7,11 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-01
+
+### Fixed — data safety
+- Unsaved editor content is no longer lost: the buffer is snapshotted on autosave,
+  on screen change, on unmount and on app shutdown (previously `on_unmount` raised
+  `NoMatches` and nothing was written)
+- Notes, tasks and settings are written atomically (temp file + `os.replace`) and
+  keep a `.bak`; corrupt files are quarantined instead of being overwritten
+- A single malformed task record no longer discards the whole task list
+- Saving over an existing note asks for confirmation
+- Recovering an autosave snapshot is now an explicit prompt instead of a silent load
+- Quitting with unsaved changes asks first (`Ctrl+Q` / menu Exit)
+
+### Fixed — behaviour
+- `Ctrl+W` / `Ctrl+P` are priority shortcuts, so weather and Pomodoro work while
+  typing in the editor (plain `w`/`p` still type text)
+- Hourly forecasts are filtered in the city's timezone (Tokyo no longer shows hours
+  that already passed), and the in-memory weather cache is keyed by coordinates
+- Theme preview no longer persists without pressing `s`; `Esc` restores the saved theme
+- Pomodoro and weather state live in app services, so the timer keeps running when
+  you switch screens instead of resetting per screen
+- Header is built from real widgets with a CSS layout: no more manual padding,
+  emoji width drift or overflow on narrow terminals (optional parts hide instead)
+- Notes moved out of the package directory into the platform documents folder, with
+  automatic migration of the old `notes/` folder
+- Tasks/config/log paths follow XDG/AppData/Application Support via `platformdirs`
+- Log rotation (1 MB × 3) instead of an unbounded `app.log`
+
 ### Added
-- Initial release preparation
-- CONTRIBUTING.md with development guidelines
-- CODE_OF_CONDUCT.md for community standards
-- Comprehensive code review and security audit
+- Help screen (`?` or `F1`) generated from the active bindings
+- 3-day forecast in the weather dialog (daily min/max and conditions)
+- The editor reopens the note you were last writing and shows a live word count
+- `Ctrl+Z` in the task manager undoes the last delete, edit or clear
+- Temperature units (°C/°F) in Settings
+- Weather disk cache plus "last updated" in the forecast dialog, and clearer errors
+- `--version`, `--notes-dir` and `--log-level` command line options
+- `py.typed`, real `[project.scripts]` packaging, `pip install -e .` works
+- GitHub Actions CI (ruff, mypy, pytest on 3 OS × 4 Python versions), pre-commit,
+  dependabot, PR template and `SECURITY.md`
+
+### Changed
+- Requires Python 3.10+ and `textual>=0.86` (the old floor could not provide themes)
+- Test suite replaced: 53 headless `pytest` tests covering editor, tasks, settings,
+  services, storage and weather parsing (the previous files were scripts that made
+  `pytest` crash on import)
+- Documentation rewritten; stale implementation notes removed
 
 ## [0.1.0] - 2025-10-29
 

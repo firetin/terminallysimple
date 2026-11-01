@@ -23,6 +23,7 @@ DIM_COLOR: str = "dim"
 # Widget IDs - centralized to avoid magic strings
 class WidgetIDs:
     """Centralized widget ID constants."""
+
     # Main Menu
     MENU_CONTAINER = "menu-container"
     TITLE = "title"
@@ -30,13 +31,14 @@ class WidgetIDs:
     ITEM_EDITOR = "item-editor"
     ITEM_TASKS = "item-tasks"
     ITEM_SETTINGS = "item-settings"
+    ITEM_HELP = "item-help"
     ITEM_EXIT = "item-exit"
-    
+
     # Editor
     EDITOR_CONTAINER = "editor-container"
     EDITOR_STATUS = "editor-status"
     TEXT_AREA = "text-area"
-    
+
     # File Browser
     BROWSER_CONTAINER = "browser-container"
     BROWSER_TITLE = "browser-title"
@@ -44,7 +46,7 @@ class WidgetIDs:
     BROWSER_SPACER = "browser-spacer"
     FILE_LIST = "file-list"
     NO_FILES = "no-files"
-    
+
     # Filename Prompt
     PROMPT_CONTAINER = "prompt-container"
     PROMPT_TITLE = "prompt-title"
@@ -52,7 +54,7 @@ class WidgetIDs:
     FILENAME_INPUT = "filename-input"
     PROMPT_HINT = "prompt-hint"
     PROMPT_RULES = "prompt-rules"
-    
+
     # Rename Dialog
     RENAME_CONTAINER = "rename-container"
     RENAME_TITLE = "rename-title"
@@ -60,7 +62,7 @@ class WidgetIDs:
     RENAME_INPUT = "rename-input"
     RENAME_HINT = "rename-hint"
     RENAME_RULES = "rename-rules"
-    
+
     # Confirm Dialog
     CONFIRM_CONTAINER = "confirm-container"
     CONFIRM_TITLE = "confirm-title"
@@ -69,15 +71,23 @@ class WidgetIDs:
     CONFIRM_BUTTONS = "confirm-buttons"
     CONFIRM_YES = "confirm-yes"
     CONFIRM_NO = "confirm-no"
-    
+
+    # Help
+    HELP_CONTAINER = "help-container"
+    HELP_TITLE = "help-title"
+    HELP_LIST = "help-list"
+    HELP_HINT = "help-hint"
+
     # Settings
     SETTINGS_CONTAINER = "settings-container"
     SETTINGS_TITLE = "settings-title"
     SETTINGS_SUBTITLE = "settings-subtitle"
     SETTINGS_TIP = "settings-tip"
+    SETTINGS_UNITS_TITLE = "settings-units-title"
     THEME_LIST = "theme-list"
+    UNIT_LIST = "unit-list"
     SETTINGS_STATUS = "settings-status"
-    
+
     # Weather
     WEATHER_CITY_CONTAINER = "weather-city-container"
     WEATHER_CITY_TITLE = "weather-city-title"
@@ -89,10 +99,12 @@ class WidgetIDs:
     WEATHER_FORECAST_TITLE = "weather-forecast-title"
     WEATHER_FORECAST_CURRENT = "weather-forecast-current"
     WEATHER_FORECAST_LIST = "weather-forecast-list"
+    WEATHER_FORECAST_DAILY = "weather-forecast-daily"
     WEATHER_FORECAST_BUTTONS = "weather-forecast-buttons"
     WEATHER_CHANGE_CITY_BTN = "weather-change-city-btn"
     WEATHER_FORECAST_HINT = "weather-forecast-hint"
-    
+    WEATHER_FORECAST_UPDATED = "weather-forecast-updated"
+
     # Pomodoro
     POMODORO_CONTAINER = "pomodoro-container"
     POMODORO_TITLE = "pomodoro-title"
